@@ -36,6 +36,7 @@
     button.good{background:linear-gradient(180deg,#1b7a50,#166340)}
     button.warn{background:linear-gradient(180deg,#7a5b1b,#664a15)}
     button.danger{background:linear-gradient(180deg,#7a1b28,#651622)}
+    button.icon{padding:6px 10px;border-radius:10px}
     button:disabled{opacity:.6;cursor:not-allowed}
     table{width:100%;border-collapse:separate;border-spacing:0 8px}
     thead th{font-size:12px;color:#9fb1c7;text-align:left;padding:0 10px}
@@ -52,6 +53,11 @@
     .note{font-size:12px;color:#c9d6e6}
     .hint{font-size:12px;color:#9fb1c7;margin-top:6px}
     .custom-wrap{display:none;gap:8px;margin-top:8px}
+
+    /* Modal */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+    .modal .box{background:#0f141c;border:1px solid #223045;border-radius:16px;max-width:90vw;max-height:90vh;padding:10px}
+    .modal img{max-width:88vw;max-height:80vh;border-radius:12px;display:block}
 
     @media (max-width: 980px){
       .panels{grid-template-columns:1fr}
@@ -151,6 +157,12 @@
                 <option>OTHER</option>
               </select>
             </div>
+            <div class="col-4">
+              <label>Photo (optional)</label>
+              <input id="photo" type="file" accept="image/*" />
+              <div class="hint">If added, you’ll see a small photo icon in the table. Click it to preview. (Photos are stored locally and not included in CSV export.)</div>
+            </div>
+
             <div class="col-12">
               <label>Notes</label>
               <input id="notes" placeholder="Any details (color, sensors, trim)" />
@@ -181,12 +193,16 @@
             <label>Model</label>
             <select id="checkModel"></select>
           </div>
+          <div class="col-12">
+            <label>OR Part number</label>
+            <input id="checkPartNumber" placeholder="Type a part # (exact or partial)" />
+          </div>
           <div class="col-12 btns">
-            <button id="btn-check" class="good">Check Vehicle</button>
+            <button id="btn-check" class="good">Check Vehicle / Part #</button>
             <button id="btn-clear-check">Clear</button>
           </div>
         </div>
-        <p class="hint">Use the dropdowns. If you need something not listed, choose <b>Custom…</b> on the Add/Edit side first to create it, then it will appear here next time.</p>
+        <p class="hint">If a part number is entered, it will be used and the Year/Make/Model are ignored.</p>
         <div id="check-results" style="margin-top:10px"></div>
       </section>
     </div>
@@ -201,7 +217,7 @@
         <table id="table">
           <thead>
             <tr>
-              <th>Y</th><th>Make</th><th>Model</th><th>Part</th><th>#</th><th>OEM/AM</th><th>Cond</th><th>Bin</th><th>Qty</th><th>Vendor</th><th>Notes</th><th></th>
+              <th>📷</th><th>Y</th><th>Make</th><th>Model</th><th>Part</th><th>#</th><th>OEM/AM</th><th>Cond</th><th>Bin</th><th>Qty</th><th>Vendor</th><th>Notes</th><th></th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -210,20 +226,26 @@
     </section>
 
     <footer>
-      <div>Made for your shop. All data is stored locally in your browser (<span class="kbd">localStorage</span>). You can export a CSV backup anytime.</div>
+      <div>Made for your shop. All data is stored locally in your browser (<span class="kbd">localStorage</span>). You can export a CSV backup anytime. (Photos are not included in CSV.)</div>
     </footer>
+  </div>
+
+  <!-- Photo Modal -->
+  <div class="modal" id="photoModal" onclick="hideModal()">
+    <div class="box" onclick="event.stopPropagation()">
+      <img id="photoImg" alt="Part photo" />
+    </div>
   </div>
 
   <script>
   // ====== Helpers ======
   const $ = sel => document.querySelector(sel);
   const $$ = sel => Array.from(document.querySelectorAll(sel));
-  const LS_KEY = 'parts_inventory_v2_dropDowns';
+  const LS_KEY = 'parts_inventory_v3_photos';
 
-  // Master lists for dropdowns (editable/grow as you add parts)
+  // Master lists for dropdowns
   const YEARS = Array.from({length: 50}, (_,i)=> String(1990 + i));
   const MAKES = ['Acura','Alfa Romeo','Audi','BMW','Buick','Cadillac','Chevrolet','Chrysler','Dodge','Ford','GMC','Honda','Hyundai','Infiniti','Jaguar','Jeep','Kia','Land Rover','Lexus','Lincoln','Mazda','Mercedes-Benz','Mini','Mitsubishi','Nissan','Porsche','Ram','Subaru','Tesla','Toyota','Volkswagen','Volvo'];
-  // A small model map (you can extend); unknown make → "Custom…"
   const MODELS = {
     'Volkswagen':['GTI','Golf','Jetta','Passat','Tiguan','Atlas'],
     'Dodge':['Durango 392','Charger','Challenger','Ram 1500'],
@@ -234,6 +256,7 @@
 
   let state = load();
   let searchTerm = '';
+  let formPhotoData = '';
 
   const form = $('#part-form');
   const tbody = $('#table tbody');
@@ -256,23 +279,13 @@
     if(includeCustom) el.appendChild(opt('Custom…'));
   }
   function initDropdowns(){
-    // Years 1990..2039 + Custom
-    buildSelect($('#year'), YEARS.concat(['20240']).slice(0,YEARS.length), {includeCustom:true}); // safeguard
+    buildSelect($('#year'), YEARS, {includeCustom:true});
     buildSelect($('#checkYear'), YEARS, {includeCustom:false});
-
-    // Makes
     buildSelect($('#make'), MAKES, {includeCustom:true});
     buildSelect($('#checkMake'), MAKES, {includeCustom:false});
-
-    // Qty (0-20 + Custom)
     buildSelect($('#qty'), Array.from({length:21},(_,i)=> String(i)), {includeCustom:true});
-
-    // Vendor preset
-    // already hard-coded in HTML
-
-    // Models depend on selected make (Add/Edit and Checker)
-    syncModelOptions($('#make').value);
-    syncCheckerModels($('#checkMake').value);
+    syncModelOptions($('#make').value || 'Volkswagen');
+    syncCheckerModels($('#checkMake').value || 'Volkswagen');
   }
   function syncModelOptions(make){
     const sel = $('#model');
@@ -290,6 +303,7 @@
   // Show/hide custom inputs when "Custom…" chosen
   function toggleCustom(field, show){
     const wrap = $('#' + field + 'CustomWrap');
+    if(!wrap) return;
     wrap.style.display = show ? 'grid' : 'none';
   }
   function getValue(selId){
@@ -299,6 +313,37 @@
       return val || 'Custom';
     }
     return sel.value;
+  }
+
+  // ====== Photo handling ======
+  $('#photo').addEventListener('change', async (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(!file) { formPhotoData=''; return; }
+    // Convert to dataURL (and optionally downscale to keep size small)
+    const dataURL = await fileToDataURL(file, 1200); // max width 1200px
+    formPhotoData = dataURL;
+  });
+  function fileToDataURL(file, maxW){
+    return new Promise((resolve,reject)=>{
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        const img = new Image();
+        img.onload = ()=>{
+          const scale = Math.min(1, maxW / img.width);
+          if(scale >= 1){ return resolve(reader.result); }
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.width * scale);
+          c.height = Math.round(img.height * scale);
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img,0,0,c.width,c.height);
+          resolve(c.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = ()=> resolve(reader.result);
+        img.src = reader.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 
   // ====== Read / Fill / Clear ======
@@ -316,6 +361,7 @@
       qty: Number($('#qty').value === 'Custom…' ? ($('#qtyCustom').value||0) : $('#qty').value),
       vendor: fmt($('#vendor').value),
       notes: fmt($('#notes').value),
+      photo: formPhotoData || undefined,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -330,24 +376,24 @@
     $('#oem').value=r.oem; $('#condition').value=r.condition; $('#bin').value=r.bin;
     setSelectValue('qty', String(r.qty)); if($('#qty').value==='Custom…'){ $('#qtyCustom').value=r.qty; }
     $('#vendor').value=r.vendor; $('#notes').value=r.notes;
+    formPhotoData = r.photo || '';
+    $('#photo').value = '';
   }
   function setSelectValue(id, value){
     const sel = $('#'+id);
     const found = [...sel.options].some(o=> o.value===value);
     if(found){ sel.value=value; toggleCustom(id, false); }
-    else { sel.value='Custom…'; toggleCustom(id, true); $('#'+id+'Custom').value=value; }
+    else { sel.value='Custom…'; toggleCustom(id, true); const custom=$('#'+id+'Custom'); if(custom) custom.value=value; }
   }
-  function clearForm(){ form.reset(); $('#rowId').value=''; toggleCustom('year', false); toggleCustom('make', false); toggleCustom('model', false); toggleCustom('qty', false); }
+  function clearForm(){ form.reset(); $('#rowId').value=''; formPhotoData=''; toggleCustom('year', false); toggleCustom('make', false); toggleCustom('model', false); toggleCustom('qty', false); }
 
   // ====== CRUD ======
   function upsert(row){
     const i = state.findIndex(r=>r.id===row.id);
     if(i>=0){ row.createdAt = state[i].createdAt; row.updatedAt = Date.now(); state[i]=row; }
     else state.unshift(row);
-    // Grow master lists with new entries so dropdowns learn
     if(!MAKES.includes(row.make) && row.make && row.make!=='Custom'){ MAKES.push(row.make); }
-    if(row.make){ MODELS[row.make] = MODELS[row.make] || []; if(!MODELS[row.make].includes(row.model) && row.model){ MODELS[row.make].push(row.model); }
-    }
+    if(row.make){ MODELS[row.make] = MODELS[row.make] || []; if(!MODELS[row.make].includes(row.model) && row.model){ MODELS[row.make].push(row.model); } }
     save(); clearForm(); initDropdowns();
   }
   function remove(id){ state = state.filter(r=>r.id!==id); save(); }
@@ -355,7 +401,7 @@
   // ====== Render ======
   function render(){
     const filtered = state.filter(r=> matchesSearch(r, searchTerm));
-    tbody.innerHTML = filtered.map(r=> rowHtml(r)).join('') || `<tr><td class="muted" colspan="12">No parts yet. Add with the form above or click <b>Load 10 Samples</b>.</td></tr>`;
+    tbody.innerHTML = filtered.map(r=> rowHtml(r)).join('') || `<tr><td class="muted" colspan="13">No parts yet. Add with the form above or click <b>Load 10 Samples</b>.</td></tr>`;
     invMeta.textContent = `${filtered.length} shown / ${state.length} total`;
   }
   function matchesSearch(r, q){
@@ -364,7 +410,9 @@
     return fields.some(f=> f.includes(q));
   }
   function rowHtml(r){
+    const hasPhoto = !!r.photo;
     return `<tr>
+      <td>${hasPhoto?`<button class="icon" title="View photo" onclick="showPhoto('${r.id}')">🖼️</button>`:''}</td>
       <td>${esc(r.year)}</td>
       <td>${esc(r.make)}</td>
       <td>${esc(r.model)}</td>
@@ -385,6 +433,8 @@
   function esc(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
   window.editRow = id => { const r=state.find(x=>x.id===id); if(r){ fillForm(r); window.scrollTo({top:0,behavior:'smooth'});} };
   window.deleteRow = id => { if(confirm('Delete this part?')) remove(id); };
+  window.showPhoto = id => { const r=state.find(x=>x.id===id); if(!r||!r.photo) return; $('#photoImg').src=r.photo; $('#photoModal').style.display='flex'; };
+  window.hideModal = ()=> { $('#photoModal').style.display='none'; };
 
   // ====== Events ======
   form.addEventListener('submit', e=>{ e.preventDefault(); const row = readForm();
@@ -402,9 +452,9 @@
   $('#model').addEventListener('change', e=> toggleCustom('model', e.target.value==='Custom…'));
   $('#qty').addEventListener('change', e=> toggleCustom('qty', e.target.value==='Custom…'));
 
-  // Export CSV
+  // Export CSV (photos excluded)
   $('#btn-export').addEventListener('click', ()=>{
-    const csv = toCSV(state);
+    const csv = toCSV(state.map(({photo, ...rest})=> rest));
     const blob = new Blob([csv], {type:'text/csv'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -429,13 +479,10 @@
   $('#btn-sample').addEventListener('click', ()=>{
     const now=Date.now();
     const samples=[
-      {year:'2018',make:'Volkswagen',model:'GTI',partName:'Front bumper cover',partNumber:'5G0-807-217-AG',oem:'OEM',condition:'New',bin:'A2-B4',qty:1,vendor:'OEM',notes:'With park sensors',createdAt:now,updatedAt:now},
-      {year:'2018',make:'Volkswagen',model:'GTI',partName:'Sensor bracket (center)',partNumber:'5G0-807-166',oem:'OEM',condition:'New',bin:'A2-B4',qty:2,vendor:'OEM',notes:'For bumper sensors',createdAt:now,updatedAt:now},
-      {year:'2018',make:'Dodge',model:'Durango 392',partName:'Rear bumper cover',partNumber:'6VF26RXFAE',oem:'OEM',condition:'New',bin:'R1-D2',qty:1,vendor:'OEM',notes:'w/ park assist',createdAt:now,updatedAt:now},
-      {year:'2020',make:'Tesla',model:'Model 3',partName:'Windshield',partNumber:'1105964-00-B',oem:'OEM',condition:'New',bin:'G1',qty:1,vendor:'OEM',notes:'Requires camera recal',createdAt:now,updatedAt:now},
-      {year:'2016',make:'BMW',model:'X5',partName:'Radiator',partNumber:'17118672104',oem:'OEM',condition:'New',bin:'Cool-1',qty:2,vendor:'KEYSTONE',notes:'N55',createdAt:now,updatedAt:now},
-      {year:'2015',make:'Honda',model:'Civic',partName:'Right tail lamp',partNumber:'33501TR0A11',oem:'OEM',condition:'Used - B',bin:'L-5',qty:1,vendor:'EMPIRE',notes:'Small scratch',createdAt:now,updatedAt:now}
-    ].map(s=> ({id:uid(), ...s}));
+      {year:'2018',make:'Volkswagen',model:'GTI',partName:'Front bumper cover',partNumber:'5G0-807-217-AG',oem:'OEM',condition:'New',bin:'A2-B4',qty:1,vendor:'OEM',notes:'With park sensors'},
+      {year:'2016',make:'BMW',model:'X5',partName:'Radiator',partNumber:'17118672104',oem:'OEM',condition:'New',bin:'Cool-1',qty:2,vendor:'KEYSTONE',notes:'N55'},
+      {year:'2015',make:'Honda',model:'Civic',partName:'Right tail lamp',partNumber:'33501TR0A11',oem:'OEM',condition:'Used - B',bin:'L-5',qty:1,vendor:'EMPIRE',notes:'Small scratch'}
+    ].map(s=> ({id:uid(), createdAt:now, updatedAt:now, ...s}));
     state = [...samples, ...state];
     save(); initDropdowns();
   });
@@ -447,18 +494,24 @@
     }
   });
 
-  // Vehicle checker
+  // Vehicle checker with Part# override
   $('#checkMake').addEventListener('change', e=> syncCheckerModels(e.target.value));
   $('#btn-check').addEventListener('click', ()=>{
-    const y = $('#checkYear').value, mk = $('#checkMake').value, md = $('#checkModel').value;
-    const results = state.filter(r=>{
-      const yOk = y ? String(r.year)===String(y) : true;
-      const mOk = mk && mk!=='-' ? String(r.make||'')===mk : true;
-      const dOk = md && md!=='-' ? String(r.model||'')===md : true;
-      return yOk && mOk && dOk;
-    });
+    const pn = fmt($('#checkPartNumber').value).toLowerCase();
+    let results = [];
+    if(pn){
+      results = state.filter(r=> String(r.partNumber||'').toLowerCase().includes(pn));
+    } else {
+      const y = $('#checkYear').value, mk = $('#checkMake').value, md = $('#checkModel').value;
+      results = state.filter(r=>{
+        const yOk = y ? String(r.year)===String(y) : true;
+        const mOk = mk && mk!=='-' ? String(r.make||'')===mk : true;
+        const dOk = md && md!=='-' ? String(r.model||'')===md : true;
+        return yOk && mOk && dOk;
+      });
+    }
     const box = $('#check-results');
-    if(results.length===0){ box.innerHTML = `<div class="muted">No matches found for ${y||'*'} ${mk||'*'} ${md||'*'}.</div>`; return; }
+    if(results.length===0){ box.innerHTML = `<div class="muted">No matches found.</div>`; return; }
     box.innerHTML = `<div style="margin-bottom:8px">Found <b>${results.length}</b> matching part(s):</div>` +
       `<div style="display:grid;gap:10px">`+
       results.map(r=>`<div class="card" style="padding:10px">`+
@@ -471,9 +524,9 @@
       `</div>`).join('')+
       `</div>`;
   });
-  $('#btn-clear-check').addEventListener('click', ()=>{ $('#checkYear').value=''; $('#checkMake').value=''; $('#checkModel').innerHTML=''; $('#check-results').innerHTML=''; });
+  $('#btn-clear-check').addEventListener('click', ()=>{ $('#checkYear').value=''; $('#checkMake').value=''; $('#checkModel').innerHTML=''; $('#checkPartNumber').value=''; $('#check-results').innerHTML=''; });
 
-  // CSV helpers (updated headers)
+  // CSV helpers (photos excluded), headers aligned
   function toCSV(rows){
     const headers = ['id','year','make','model','partName','partNumber','oem','condition','bin','qty','vendor','notes','createdAt','updatedAt'];
     const escC = v => '"'+String(v??'').replace(/"/g,'""')+'"';
