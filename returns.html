@@ -18,17 +18,14 @@
   label{font-size:12px;color:var(--muted)}
   input,select{width:100%;background:#fff;color:#0b1220;border:1px solid #d7e0ea;border-radius:12px;padding:10px 12px;font-size:14px;outline:none}
   .btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
-  button{background:#f5f8ff;border:1px solid #cfe0ff;color:#0b2c66;padding:10px 14px;border-radius:12px;font-weight:600;cursor:pointer}
+  button{background:#f5f8ff;border:1px solid #cfe0ff;color:#0b2c66;padding:8px 12px;border-radius:10px;font-weight:600;cursor:pointer}
   button.good{background:#198754;color:#fff;border-color:#198754}
   button.warn{background:#b8860b;color:#fff;border-color:#b8860b}
   button.danger{background:#c0392b;color:#fff;border-color:#c0392b}
-  .pill{padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #d6e2f3;color:#1f3c68;background:#eef4ff}
+  table{width:100%;border-collapse:separate;border-spacing:0 8px}
+  thead th{font-size:12px;color:#5b6b83;text-align:left;padding:0 10px}
+  tbody td{background:#fff;border:1px solid var(--border);border-left:none;border-right:none;padding:10px;border-radius:10px}
   .mini{font-size:12px;color:var(--muted)}
-  .list{display:grid;gap:10px}
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
-  .modal .box{background:#fff;border:1px solid var(--border);border-radius:16px;max-width:95vw;max-height:95vh;padding:12px}
-  canvas.sig{border:1px dashed #cbd5e1;border-radius:10px;background:#fff;touch-action:none}
-  @media (max-width:980px){.row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -78,19 +75,43 @@
       </div>
     </section>
 
+    <!-- To Return -->
     <section class="card">
       <h2 style="margin:0 0 10px;color:#0b2c66">To Return</h2>
-      <div id="list-toReturn" class="list"></div>
+      <div style="overflow:auto">
+        <table>
+          <thead><tr>
+            <th>Part</th><th>#</th><th>Vendor</th><th>Qty</th><th>Price</th><th>Invoice</th><th>Notes</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="tb-toReturn"></tbody>
+        </table>
+      </div>
     </section>
 
+    <!-- Pending Refund -->
     <section class="card">
       <h2 style="margin:0 0 10px;color:#0b2c66">Pending Refund</h2>
-      <div id="list-pendingRefund" class="list"></div>
+      <div style="overflow:auto">
+        <table>
+          <thead><tr>
+            <th>Part</th><th>#</th><th>Vendor</th><th>Qty</th><th>Price</th><th>Invoice</th><th>Driver</th><th>Sent</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="tb-pending"></tbody>
+        </table>
+      </div>
     </section>
 
+    <!-- Archive -->
     <section class="card">
       <h2 style="margin:0 0 10px;color:#0b2c66">Archive</h2>
-      <div id="list-archive" class="list"></div>
+      <div style="overflow:auto">
+        <table>
+          <thead><tr>
+            <th>Part</th><th>#</th><th>Vendor</th><th>Qty</th><th>Price</th><th>Invoice</th><th>Driver</th><th>Paid</th>
+          </tr></thead>
+          <tbody id="tb-archive"></tbody>
+        </table>
+      </div>
     </section>
   </div>
 
@@ -110,8 +131,8 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
-  const LS_KEY='parts_inventory_whitetheme_returns_v3'; // same as index
+  const $=s=>document.querySelector(s);
+  const LS_KEY='parts_inventory_whitetheme_returns_v3';
 
   function loadStore(){
     try{
@@ -125,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let STORE=loadStore();
   function saveStore(){ localStorage.setItem(LS_KEY, JSON.stringify(STORE)); renderAll(); }
   function uid(){ return Math.random().toString(36).slice(2,10); }
-  function esc(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&gt;":">","\"":"&quot;","'":"&#39;"}[m])); }
+  function esc(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","\">":"&quot;","'":"&#39;",">":"&gt;"}[m])); }
   function fmt(v){ return (v??'').toString().trim(); }
 
   // Quick add lookup by Part #
@@ -145,13 +166,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     if(!rec.partName && !rec.partNumber){ alert('Enter at least a Part name or Part #'); return; }
     STORE.toReturn.unshift(rec);
-    saveStore(); // <- re-renders all lists so it shows up immediately
-    // clear
+    saveStore();               // ensures it shows up immediately
+    // clear form
     ['qaPart','qaNumber','qaVendor','qaQty','qaPrice','qaInvoice','qaNotes'].forEach(id=>$('#'+id).value='');
     $('#qaQty').value=1;
   });
 
-  // Filter/sort
+  // Filter/sort (applies to all three tables)
   $('#filterVendor').addEventListener('change', renderAll);
   $('#sortVendor').addEventListener('change', renderAll);
   function applyFilterSort(list){
@@ -165,50 +186,67 @@ document.addEventListener('DOMContentLoaded', () => {
     return out;
   }
 
-  // Render
-  function renderAll(){
-    $('#list-toReturn').innerHTML = renderList(applyFilterSort(STORE.toReturn), 'toReturn');
-    $('#list-pendingRefund').innerHTML = renderList(applyFilterSort(STORE.pendingRefund), 'pendingRefund');
-    $('#list-archive').innerHTML = renderList(applyFilterSort(STORE.archive), 'archive');
-  }
-  function renderList(arr, where){ if(!arr.length) return `<div class="mini">Empty</div>`; return arr.map(r=>itemCard(r, where)).join(''); }
-  function itemCard(r, where){
-    const top = `
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <span class="pill">${esc(r.partName||'-')}</span>
-        <span class="pill">#${esc(r.partNumber||'-')}</span>
-        <span class="pill">Vendor: ${esc(r.vendor||'-')}</span>
-        <span class="pill">Qty: ${esc(r.qty||1)}</span>
-        ${r.price!==''? `<span class="pill">Price: $${Number(r.price).toFixed(2)}</span>`:''}
-        ${r.invoice? `<span class="pill">Inv: ${esc(r.invoice)}</span>`:''}
-        ${r.driver? `<span class="pill">Driver: ${esc(r.driver)}</span>`:''}
-        ${r.takenAt? `<span class="pill">Sent: ${new Date(r.takenAt).toLocaleString()}</span>`:''}
-      </div>`;
-    const notes = `<div class="mini" style="margin-top:6px">${esc(r.notes||'')}</div>`;
-    let actions='';
-    if(where==='toReturn'){
-      actions = `<div class="btns" style="margin-top:8px">
-        <button class="good" onclick="openSend('${r.id}')">Mark Sent (sign)</button>
+  // Renderers: build rows into each table
+  function td(v){ return `<td>${v}</td>`; }
+  function rowToReturn(r){
+    return `<tr>
+      ${td(esc(r.partName||'-'))}
+      ${td(esc(r.partNumber||'-'))}
+      ${td(esc(r.vendor||'-'))}
+      ${td(esc(r.qty||1))}
+      ${td(r.price!==''? '$'+Number(r.price).toFixed(2):'-')}
+      ${td(esc(r.invoice||'-'))}
+      ${td(esc(r.notes||''))}
+      <td>
+        <button class="good" onclick="openSend('${r.id}')">Mark Sent</button>
         <button onclick="editPending('${r.id}')">Edit</button>
         <button class="danger" onclick="removePending('${r.id}')">Remove</button>
-      </div>`;
-    } else if(where==='pendingRefund'){
-      actions = `<div class="btns" style="margin-top:8px">
+      </td>
+    </tr>`;
+  }
+  function rowPending(r){
+    return `<tr>
+      ${td(esc(r.partName||'-'))}
+      ${td(esc(r.partNumber||'-'))}
+      ${td(esc(r.vendor||'-'))}
+      ${td(esc(r.qty||1))}
+      ${td(r.price!==''? '$'+Number(r.price).toFixed(2):'-')}
+      ${td(esc(r.invoice||'-'))}
+      ${td(esc(r.driver||'-'))}
+      ${td(r.takenAt? new Date(r.takenAt).toLocaleString():'-')}
+      <td>
         <button class="warn" onclick="viewSignature('${r.id}')">View Signature</button>
         <button class="good" onclick="markPaid('${r.id}')">Paid → Archive</button>
-        <button class="danger" onclick="cancelRefund('${r.id}')">Cancel & Back to To Return</button>
-      </div>`;
-    }
-    return `<div class="card">${top}${notes}${actions||''}</div>`;
+        <button class="danger" onclick="cancelRefund('${r.id}')">Back to To Return</button>
+      </td>
+    </tr>`;
+  }
+  function rowArchive(r){
+    return `<tr>
+      ${td(esc(r.partName||'-'))}
+      ${td(esc(r.partNumber||'-'))}
+      ${td(esc(r.vendor||'-'))}
+      ${td(esc(r.qty||1))}
+      ${td(r.price!==''? '$'+Number(r.price).toFixed(2):'-')}
+      ${td(esc(r.invoice||'-'))}
+      ${td(esc(r.driver||'-'))}
+      ${td(r.paidAt? new Date(r.paidAt).toLocaleString():'-')}
+    </tr>`;
+  }
+
+  function renderAll(){
+    const toR = applyFilterSort(STORE.toReturn);
+    const pend = applyFilterSort(STORE.pendingRefund);
+    const arch = applyFilterSort(STORE.archive);
+    document.querySelector('#tb-toReturn').innerHTML = toR.length? toR.map(rowToReturn).join('') : `<tr><td class="mini" colspan="8">Empty</td></tr>`;
+    document.querySelector('#tb-pending').innerHTML = pend.length? pend.map(rowPending).join('') : `<tr><td class="mini" colspan="9">Empty</td></tr>`;
+    document.querySelector('#tb-archive').innerHTML = arch.length? arch.map(rowArchive).join('') : `<tr><td class="mini" colspan="8">Empty</td></tr>`;
   }
 
   // Edit/remove To Return
   window.editPending = id => {
     const r = STORE.toReturn.find(x=>x.id===id); if(!r) return;
-    const fields = [
-      ['Part name','partName'], ['Part #','partNumber'], ['Vendor','vendor'],
-      ['Qty','qty'], ['Price','price'], ['Invoice','invoice'], ['Notes','notes']
-    ];
+    const fields = [['Part name','partName'],['Part #','partNumber'],['Vendor','vendor'],['Qty','qty'],['Price','price'],['Invoice','invoice'],['Notes','notes']];
     for(const [label,key] of fields){
       const v = prompt(`${label}:`, String(r[key] ?? ''));
       if(v===null) continue;
@@ -220,9 +258,9 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   window.removePending = id => { if(confirm('Remove from To Return?')){ STORE.toReturn = STORE.toReturn.filter(x=>x.id!==id); saveStore(); } };
 
-  // Signature flow
+  // Signature modal
   let sendCtx={id:null};
-  const sendModal=$('#sendModal'); const sigPad=$('#sigPad'); const ctx=sigPad.getContext('2d'); ctx.lineWidth=2; ctx.lineCap='round';
+  const sendModal=document.querySelector('#sendModal'); const sigPad=document.querySelector('#sigPad'); const ctx=sigPad.getContext('2d'); ctx.lineWidth=2; ctx.lineCap='round';
   let drawing=false,last=null;
   function pos(e){ const r=sigPad.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return {x,y}; }
   function startDraw(e){ drawing=true; last=pos(e); }
@@ -230,20 +268,20 @@ document.addEventListener('DOMContentLoaded', () => {
   function endDraw(){ drawing=false; }
   sigPad.addEventListener('mousedown',startDraw); sigPad.addEventListener('mousemove',moveDraw); window.addEventListener('mouseup',endDraw);
   sigPad.addEventListener('touchstart',startDraw,{passive:true}); sigPad.addEventListener('touchmove',moveDraw,{passive:true}); sigPad.addEventListener('touchend',endDraw);
-  $('#sigClear').addEventListener('click', ()=> ctx.clearRect(0,0,sigPad.width,sigPad.height));
+  document.querySelector('#sigClear').addEventListener('click', ()=> ctx.clearRect(0,0,sigPad.width,sigPad.height));
 
   window.openSend = id =>{
-    sendCtx.id=id; $('#sigDriver').value='';
-    const now=new Date(); $('#sigWhen').value=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16);
-    $('#sigExtra').value=''; ctx.clearRect(0,0,sigPad.width,sigPad.height); sendModal.style.display='flex';
+    sendCtx.id=id; document.querySelector('#sigDriver').value='';
+    const now=new Date(); document.querySelector('#sigWhen').value=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+    document.querySelector('#sigExtra').value=''; ctx.clearRect(0,0,sigPad.width,sigPad.height); sendModal.style.display='flex';
   };
   function hideSendModal(){ sendModal.style.display='none'; } window.hideSendModal=hideSendModal;
 
-  $('#sigSave').addEventListener('click', ()=>{
+  document.querySelector('#sigSave').addEventListener('click', ()=>{
     const rec = STORE.toReturn.find(x=>x.id===sendCtx.id); if(!rec) return;
-    const driver = fmt($('#sigDriver').value); if(!driver){ alert('Enter driver name'); return; }
-    const when = $('#sigWhen').value ? new Date($('#sigWhen').value).getTime() : Date.now();
-    const extra = fmt($('#sigExtra').value);
+    const driver = fmt(document.querySelector('#sigDriver').value); if(!driver){ alert('Enter driver name'); return; }
+    const when = document.querySelector('#sigWhen').value ? new Date(document.querySelector('#sigWhen').value).getTime() : Date.now();
+    const extra = fmt(document.querySelector('#sigExtra').value);
     const signature = sigPad.toDataURL('image/png');
     const moved = Object.assign({}, rec, { driver, takenAt: when, extra, signature, status:'pendingRefund' });
     STORE.toReturn = STORE.toReturn.filter(x=>x.id!==rec.id);
@@ -269,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
     STORE.archive.unshift(r); saveStore();
   };
 
-  // keep in sync if both tabs open
+  // keep in sync if both tabs are open
   window.addEventListener('storage', (e)=>{ if(e.key===LS_KEY){ STORE=loadStore(); renderAll(); }});
   renderAll();
 });
