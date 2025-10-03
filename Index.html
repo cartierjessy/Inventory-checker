@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shop Parts Inventory & Vehicle Checker</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --panel:#101620; --panel-2:#0f141c; --text:#e8eef6; --muted:#9fb1c7; --accent:#3aa0ff; --accent-2:#65d38e; --warn:#ffb020; --danger:#ff6b6b;
+      --br:18px; --pad:14px; --gap:14px; --shadow: 0 10px 40px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(120deg,#0a0e13,#0d131b);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,Apple Color Emoji,Segoe UI Emoji}
+    .wrap{max-width:1200px;margin:0 auto;padding:24px}
+    header{display:flex;gap:var(--gap);align-items:center;justify-content:space-between;margin-bottom:18px}
+    h1{font-size:20px;margin:0;letter-spacing:.2px}
+    .badge{background:rgba(101,211,142,.15);color:#c9f5de;border:1px solid rgba(101,211,142,.4);padding:4px 10px;border-radius:999px;font-size:12px}
+    .grid{display:grid;gap:var(--gap)}
+    .panels{grid-template-columns:1.1fr .9fr}
+    .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid #1b2533;border-radius:var(--br);padding:var(--pad);box-shadow:var(--shadow)}
+    .card h2{margin:0 0 10px;font-size:16px;color:#cfe4ff}
+    label{font-size:12px;color:var(--muted)}
+    input,select,textarea{width:100%;background:#0c121a;color:var(--text);border:1px solid #263448;border-radius:12px;padding:10px 12px;font-size:14px;outline:none}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(58,160,255,.2)}
+    .row{display:grid;grid-template-columns:repeat(12,1fr);gap:10px}
+    .col-3{grid-column:span 3}
+    .col-2{grid-column:span 2}
+    .col-4{grid-column:span 4}
+    .col-6{grid-column:span 6}
+    .col-12{grid-column:span 12}
+    .btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+    button{background:linear-gradient(180deg,#1a2330,#16202e);border:1px solid #2a3b50;color:var(--text);padding:10px 14px;border-radius:12px;font-weight:600;cursor:pointer}
+    button.primary{background:linear-gradient(180deg,#1570ff,#0f5fe0);border-color:#1a6dff}
+    button.good{background:linear-gradient(180deg,#1b7a50,#166340)}
+    button.warn{background:linear-gradient(180deg,#7a5b1b,#664a15)}
+    button.danger{background:linear-gradient(180deg,#7a1b28,#651622)}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    thead th{font-size:12px;color:#9fb1c7;text-align:left;padding:0 10px}
+    tbody td{background:#0d141d;border:1px solid #1f2b3a;border-left:none;border-right:none;padding:10px;border-radius:10px}
+    tbody tr{transition:transform .08s ease}
+    tbody tr:hover{transform:translateY(-1px)}
+    .pill{padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #28435d;color:#b7d7ff;background:#0b1c30}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap}
+    .toolbar input{max-width:260px}
+    .muted{color:var(--muted)}
+    .right{margin-left:auto}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;background:#06090e;border:1px solid #1c2836;border-radius:6px;padding:2px 6px;color:#cfe4ff}
+    footer{margin-top:18px;color:#7d91ab;font-size:12px}
+    .note{font-size:12px;color:#c9d6e6}
+    @media (max-width: 980px){
+      .panels{grid-template-columns:1fr}
+      .col-3,.col-2,.col-4,.col-6{grid-column:span 12}
+      .toolbar{flex-direction:column;align-items:stretch}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div style="display:flex;align-items:center;gap:10px">
+        <h1>Parts Inventory & Vehicle Checker</h1>
+        <span class="badge">Offline / saves to your device</span>
+      </div>
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Search parts (part #, name, Y/M/M, vendor, bin, notes)" />
+        <button id="btn-export" title="Download CSV">Export CSV</button>
+        <button id="btn-import" title="Import CSV">Import CSV</button>
+        <input id="file" type="file" accept=".csv" style="display:none" />
+        <button id="btn-sample" class="warn" title="Load sample rows">Load 10 Samples</button>
+        <button id="btn-clear" class="danger" title="Erase everything">Erase All</button>
+      </div>
+    </header>
+    <div class="grid panels">
+      <section class="card">
+        <h2>Add / Edit Part</h2>
+        <form id="part-form">
+          <input type="hidden" id="rowId" />
+          <div class="row">
+            <div class="col-3">
+              <label>Year</label>
+              <input id="year" type="number" min="1960" max="2050" placeholder="e.g. 2018" />
+            </div>
+            <div class="col-4">
+              <label>Make</label>
+              <input id="make" placeholder="e.g. Volkswagen" />
+            </div>
+            <div class="col-5">
+              <label>Model</label>
+              <input id="model" placeholder="e.g. GTI" />
+            </div>
+            <div class="col-4">
+              <label>Category</label>
+              <select id="category">
+                <option>Body</option>
+                <option>Lighting</option>
+                <option>Cooling</option>
+                <option>Electrical</option>
+                <option>Suspension</option>
+                <option>Interior</option>
+                <option>Glass</option>
+                <option>Hardware</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="col-4">
+              <label>Part Name</label>
+              <input id="partName" placeholder="e.g. Front bumper cover" />
+            </div>
+            <div class="col-4">
+              <label>Part #</label>
+              <input id="partNumber" placeholder="e.g. 5G0-807-217-AG" />
+            </div>
+            <div class="col-4">
+              <label>OEM / Aftermarket</label>
+              <select id="oem">
+                <option>OEM</option>
+                <option>Aftermarket</option>
+                <option>Recycled</option>
+                <option>Reman</option>
+              </select>
+            </div>
+            <div class="col-4">
+              <label>Condition</label>
+              <select id="condition">
+                <option>New</option>
+                <option>Used - A</option>
+                <option>Used - B</option>
+                <option>Damaged/Repairable</option>
+              </select>
+            </div>
+            <div class="col-4">
+              <label>Bin / Location</label>
+              <input id="bin" placeholder="e.g. Aisle 2, Bin B4" />
+            </div>
+            <div class="col-4">
+              <label>Qty</label>
+              <input id="qty" type="number" min="0" value="1" />
+            </div>
+            <div class="col-4">
+              <label>Cost</label>
+              <input id="cost" type="number" min="0" step="0.01" placeholder="0.00" />
+            </div>
+            <div class="col-4">
+              <label>MSRP</label>
+              <input id="msrp" type="number" min="0" step="0.01" placeholder="0.00" />
+            </div>
+            <div class="col-6">
+              <label>Vendor</label>
+              <input id="vendor" placeholder="e.g. LKQ, Keystone, Dealer" />
+            </div>
+            <div class="col-6">
+              <label>Notes</label>
+              <input id="notes" placeholder="Any details (color, sensors, trim)" />
+            </div>
+            <div class="col-12 btns">
+              <button type="submit" class="primary" id="btn-save">Save Part (⌘/Ctrl+S)</button>
+              <button type="button" id="btn-reset">Reset</button>
+            </div>
+          </div>
+        </form>
+        <p class="note">Tip: Use the <span class="kbd">Search</span> box above to instantly filter your table and find matches. Import/Export lets you move data between devices or into Excel/Numbers.
+        </p>
+      </section>
+      <section class="card">
+        <h2>Vehicle Checker (Do I stock parts for this car?)</h2>
+        <div class="row">
+          <div class="col-3">
+            <label>Year</label>
+            <input id="checkYear" type="number" min="1960" max="2050" placeholder="e.g. 2018" />
+          </div>
+          <div class="col-4">
+            <label>Make</label>
+            <input id="checkMake" placeholder="e.g. Volkswagen" />
+          </div>
+          <div class="col-5">
+            <label>Model</label>
+            <input id="checkModel" placeholder="e.g. GTI" />
+          </div>
+          <div class="col-12 btns">
+            <button id="btn-check" class="good">Check Vehicle</button>
+            <button id="btn-clear-check">Clear</button>
+          </div>
+        </div>
+        <div id="check-results" style="margin-top:10px"></div>
+      </section>
+    </div>
+    <section class="card" style="margin-top:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <h2 style="margin-right:auto">Inventory</h2>
+        <span class="muted" id="inv-meta"></span>
+      </div>
+      <div style="overflow:auto">
+        <table id="table">
+          <thead>
+            <tr>
+              <th>Y</th><th>Make</th><th>Model</th><th>Category</th><th>Part</th><th>#</th><th>OEM</th><th>Cond</th><th>Bin</th><th>Qty</th><th>Cost</th><th>MSRP</th><th>Vendor</th><th>Notes</th><th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+    <footer>
+      <div>Made for your shop. All data is stored locally in your browser (<span class="kbd">localStorage</span>). You can export a CSV backup anytime.</div>
+    </footer>
+  </div>
+  <script>
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+  const LS_KEY = 'parts_inventory_v1';
+  let state = load();
+  let searchTerm = '';
+  const form = $('#part-form');
+  const tbody = $('#table tbody');
+  const invMeta = $('#inv-meta');
+  function load(){
+    try{ return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); }
+    catch{ return []; }
+  }
+  function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); render(); }
+  function fmtMoney(v){ if(v===undefined||v===null||v==='') return ''; const n=Number(v); return isNaN(n)?'': n.toFixed(2); }
+  function cleanStr(s){ return (s||'').toString().trim(); }
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+  function readForm(){
+    return {
+      id: $('#rowId').value || uid(),
+      year: cleanStr($('#year').value),
+      make: cleanStr($('#make').value),
+      model: cleanStr($('#model').value),
+      category: cleanStr($('#category').value),
+      partName: cleanStr($('#partName').value),
+      partNumber: cleanStr($('#partNumber').value),
+      oem: cleanStr($('#oem').value),
+      condition: cleanStr($('#condition').value),
+      bin: cleanStr($('#bin').value),
+      qty: Number($('#qty').value||0),
+      cost: Number($('#cost').value||0),
+      msrp: Number($('#msrp').value||0),
+      vendor: cleanStr($('#vendor').value),
+      notes: cleanStr($('#notes').value),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+  }
+  function fillForm(row){
+    $('#rowId').value = row.id;
+    $('#year').value = row.year; $('#make').value=row.make; $('#model').value=row.model;
+    $('#category').value=row.category; $('#partName').value=row.partName; $('#partNumber').value=row.partNumber;
+    $('#oem').value=row.oem; $('#condition').value=row.condition; $('#bin').value=row.bin;
+    $('#qty').value=row.qty; $('#cost').value=row.cost; $('#msrp').value=row.msrp; $('#vendor').value=row.vendor; $('#notes').value=row.notes;
+  }
+  function clearForm(){ form.reset(); $('#rowId').value=''; $('#qty').value=1; }
+  function upsert(row){
+    const i = state.findIndex(r=>r.id===row.id);
+    if(i>=0){ row.createdAt = state[i].createdAt; row.updatedAt = Date.now(); state[i]=row; }
+    else state.unshift(row);
+    save(); clearForm();
+  }
+  function remove(id){ state = state.filter(r=>r.id!==id); save(); }
+  function render(){
+    const filtered = state.filter(r=> matchesSearch(r, searchTerm));
+    tbody.innerHTML = filtered.map(r=> rowHtml(r)).join('') || `<tr><td class="muted" colspan="15">No parts yet. Add with the form above or click <b>Load 10 Samples</b>.</td></tr>`;
+    invMeta.textContent = `${filtered.length} shown / ${state.length} total`;
+  }
+  function matchesSearch(r, q){
+    if(!q) return true; q=q.toLowerCase();
+    const fields = [r.year,r.make,r.model,r.category,r.partName,r.partNumber,r.oem,r.condition,r.bin,r.vendor,r.notes,r.qty,r.cost,r.msrp].map(x=>String(x||'').toLowerCase());
+    return fields.some(f=> f.includes(q));
+  }
+  function rowHtml(r){
+    return `<tr>
+      <td>${esc(r.year)}</td>
+      <td>${esc(r.make)}</td>
+      <td>${esc(r.model)}</td>
+      <td><span class="pill">${esc(r.category||'')}</span></td>
+      <td>${esc(r.partName)}</td>
+      <td><code class="kbd">${esc(r.partNumber)}</code></td>
+      <td>${esc(r.oem)}</td>
+      <td>${esc(r.condition)}</td>
+      <td>${esc(r.bin)}</td>
+      <td>${r.qty}</td>
+      <td>${fmtMoney(r.cost)}</td>
+      <td>${fmtMoney(r.msrp)}</td>
+      <td>${esc(r.vendor)}</td>
+      <td>${esc(r.notes)}</td>
+      <td>
+        <button onclick="editRow('${r.id}')">Edit</button>
+        <button class="danger" onclick="deleteRow('${r.id}')">Delete</button>
+      </td>
+    </tr>`
+  }
+  function esc(s){ return (s??'').toString().replace(/[&<>\"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;","'":"&#39;"}[m])); }
+  window.editRow = id => { const r=state.find(x=>x.id===id); if(r){ fillForm(r); window.scrollTo({top:0,behavior:'smooth'});} };
+  window.deleteRow = id => { if(confirm('Delete this part?')) remove(id); };
+  form.addEventListener('submit', e=>{ e.preventDefault(); const row = readForm();
+    if(!row.partName){ alert('Part Name is required'); return; }
+    if(!row.make || !row.model){ if(!confirm('Make/Model empty. Save anyway?')) return; }
+    upsert(row);
+  });
+  $('#btn-reset').addEventListener('click', clearForm);
+  document.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){ e.preventDefault(); $('#btn-save').click(); }});
+  $('#search').addEventListener('input', e=>{ searchTerm = e.target.value; render(); });
+  $('#btn-export').addEventListener('click', ()=>{
+    const csv = toCSV(state);
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `parts-inventory-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  });
+  $('#btn-import').addEventListener('click', ()=> $('#file').click());
+  $('#file').addEventListener('change', async (e)=>{
+    const file = e.target.files[0]; if(!file) return;
+    const text = await file.text();
+    const rows = fromCSV(text);
+    if(!Array.isArray(rows)) return alert('Could not parse CSV');
+    if(!confirm(`Import ${rows.length} rows? This will add to your current inventory.`)) return;
+    rows.forEach(r=>{ r.id = r.id || uid(); r.createdAt = r.createdAt || Date.now(); r.updatedAt = Date.now(); r.qty = Number(r.qty||0); r.cost = Number(r.cost||0); r.msrp = Number(r.msrp||0); });
+    state = [...rows, ...state];
+    save(); e.target.value='';
+  });
+  $('#btn-sample').addEventListener('click', ()=>{
+    const samples = sampleRows();
+    state = [...samples, ...state];
+    save();
+  });
+  $('#btn-clear').addEventListener('click', ()=>{
+    if(confirm('This erases ALL saved parts on this device. Proceed?')){
+      state = []; save();
+    }
+  });
+  $('#btn-check').addEventListener('click', ()=>{
+    const y = cleanStr($('#checkYear').value), mk = cleanStr($('#checkMake').value).toLowerCase(), md = cleanStr($('#checkModel').value).toLowerCase();
+    const results = state.filter(r=>{
+      const yOk = y ? String(r.year)===String(y) : true;
+      const mOk = mk ? String(r.make||'').toLowerCase().includes(mk) : true;
+      const dOk = md ? String(r.model||'').toLowerCase().includes(md) : true;
+      return yOk && mOk && dOk;
+    });
+    const box = $('#check-results');
+    if(results.length===0){ box.innerHTML = `<div class="muted">No matches found for ${y||'*'} ${mk||'*'} ${md||'*'}. Try widening your search.</div>`; return; }
+    box.innerHTML = `<div style="margin-bottom:8px">Found <b>${results.length}</b> matching part(s):</div>` +
+      `<div style="display:grid;gap:10px">`+
+      results.map(r=>`<div class="card" style="padding:10px">`+
+        `<div style="display:flex;gap:8px;align-items:center"><span class="pill">${esc(r.year)} ${esc(r.make)} ${esc(r.model)}</span>`+
+        `<span class="pill">${esc(r.category)}</span>`+
+        `<span class="pill">Bin: ${esc(r.bin||'-')}</span>`+
+        `<span class="pill">Qty: ${r.qty}</span>`+
+        `</div>`+
+        `<div style="margin-top:6px"><b>${esc(r.partName)}</b> <span class="muted">#${esc(r.partNumber||'-')}</span></div>`+
+        `<div class="muted">${esc(r.oem)} • ${esc(r.condition)} • Vendor: ${esc(r.vendor||'-')}</div>`+
+      `</div>`).join('')+
+      `</div>`;
+  });
+  $('#btn-clear-check').addEventListener('click', ()=>{ $('#checkYear').value=''; $('#checkMake').value=''; $('#checkModel').value=''; $('#check-results').innerHTML=''; });
+  function toCSV(rows){
+    const headers = ['id','year','make','model','category','partName','partNumber','oem','condition','bin','qty','cost','msrp','vendor','notes','createdAt','updatedAt'];
+    const escC = v => '"' + String(v??'').replace(/"/g,'""') + '"';
+    return headers.join(',')+'\\n'+rows.map(r=> headers.map(h=> escC(r[h])).join(',')).join('\\n');
+  }
+  function fromCSV(text){
+    const lines = text.split(/\\r?\\n/).filter(Boolean);
+    if(lines.length<2) return [];
+    const headers = splitCSVLine(lines[0]);
+    return lines.slice(1).map(line=>{
+      const cols = splitCSVLine(line);
+      const obj = {}; headers.forEach((h,i)=> obj[h]=cols[i]);
+      return obj;
+    });
+  }
+  function splitCSVLine(line){
+    const out=[]; let cur=''; let inQ=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch=='"'){
+        if(inQ && line[i+1]=='"'){ cur+='"'; i++; }
+        else inQ=!inQ;
+      } else if(ch===',' && !inQ){ out.push(cur); cur=''; }
+      else cur+=ch;
+    }
+    out.push(cur); return out;
+  }
+  function sampleRows(){
+    const now=Date.now();
+    const samples=[
+      {year:'2018',make:'Volkswagen',model:'GTI',category:'Body',partName:'Front bumper cover',partNumber:'5G0-807-217-AG',oem:'OEM',condition:'New',bin:'A2-B4',qty:1,cost:420,msrp:899.99,vendor:'Dealer',notes:'With park sensors',createdAt:now,updatedAt:now},
+      {year:'2018',make:'Volkswagen',model:'GTI',category:'Hardware',partName:'Sensor bracket (center)',partNumber:'5G0-807-166',oem:'OEM',condition:'New',bin:'A2-B4',qty:2,cost:18.5,msrp:32.0,vendor:'Dealer',notes:'For bumper sensors',createdAt:now,updatedAt:now},
+      {year:'2018',make:'Dodge',model:'Durango 392',category:'Lighting',partName:'Left headlamp',partNumber:'68306951AE',oem:'OEM',condition:'Used - A',bin:'C1-A1',qty:1,cost:550,msrp:1250,vendor:'LKQ',notes:'With LED DRL',createdAt:now,updatedAt:now},
+      {year:'2018',make:'Dodge',model:'Durango 392',category:'Body',partName:'Rear bumper cover',partNumber:'6VF26RXFAE',oem:'OEM',condition:'New',bin:'R1-D2',qty:1,cost:380,msrp:799.99,vendor:'Dealer',notes:'w/ park assist',createdAt:now,updatedAt:now},
+      {year:'2020',make:'Tesla',model:'Model 3',category:'Glass',partName:'Windshield',partNumber:'1105964-00-B',oem:'OEM',condition:'New',bin:'G1',qty:1,cost:480,msrp:980,vendor:'Dealer',notes:'Requires camera recal',createdAt:now,updatedAt:now},
+      {year:'2020',make:'Tesla',model:'Model 3',category:'Electrical',partName:'Charge port door',partNumber:'1101832-00-C',oem:'OEM',condition:'Used - A',bin:'E2',qty:1,cost:90,msrp:180,vendor:'Recycler',notes:'Blue',createdAt:now,updatedAt:now},
+      {year:'2016',make:'BMW',model:'X5',category:'Cooling',partName:'Radiator',partNumber:'17118672104',oem:'OEM',condition:'New',bin:'Cool-1',qty:2,cost:210,msrp:480,vendor:'Keystone',notes:'N55',createdAt:now,updatedAt:now},
+      {year:'2016',make:'BMW',model:'X5',category:'Hardware',partName:'Push clips set',partNumber:'51118174185',oem:'OEM',condition:'New',bin:'H-3',qty:20,cost:0.4,msrp:1.2,vendor:'Dealer',notes:'Pack of 50',createdAt:now,updatedAt:now},
+      {year:'2015',make:'Honda',model:'Civic',category:'Suspension',partName:'Front lower control arm LH',partNumber:'51350TR3A02',oem:'Aftermarket',condition:'New',bin:'S-2',qty:1,cost:65,msrp:129.99,vendor:'Aftermarket',notes:'Aluminum',createdAt:now,updatedAt:now},
+      {year:'2015',make:'Honda',model:'Civic',category:'Lighting',partName:'Right tail lamp',partNumber:'33501TR0A11',oem:'OEM',condition:'Used - B',bin:'L-5',qty:1,cost:45,msrp:110,vendor:'Recycler',notes:'Small scratch',createdAt:now,updatedAt:now}
+    ];
+    return samples.map(s=> ({id:uid(), ...s}));
+  }
+  render();
+  </script>
+</body>
+</html>
