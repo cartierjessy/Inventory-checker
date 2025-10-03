@@ -54,10 +54,13 @@
     .hint{font-size:12px;color:#9fb1c7;margin-top:6px}
     .custom-wrap{display:none;gap:8px;margin-top:8px}
 
-    /* Modal */
+    /* Photo */
     .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
     .modal .box{background:#0f141c;border:1px solid #223045;border-radius:16px;max-width:90vw;max-height:90vh;padding:10px}
     .modal img{max-width:88vw;max-height:80vh;border-radius:12px;display:block}
+
+    /* Floating Erase button */
+    .erase-fab{position:fixed;left:16px;bottom:16px;z-index:60}
 
     @media (max-width: 980px){
       .panels{grid-template-columns:1fr}
@@ -75,11 +78,6 @@
       </div>
       <div class="toolbar">
         <input id="search" type="search" placeholder="Search parts (part #, name, Y/M/M, vendor, bin, notes)" />
-        <button id="btn-export" title="Download CSV">Export CSV</button>
-        <button id="btn-import" title="Import CSV">Import CSV</button>
-        <input id="file" type="file" accept=".csv" style="display:none" />
-        <button id="btn-sample" class="warn" title="Load sample rows">Load 10 Samples</button>
-        <button id="btn-clear" class="danger" title="Erase everything">Erase All</button>
       </div>
     </header>
 
@@ -174,7 +172,6 @@
             </div>
           </div>
         </form>
-        <p class="note">Tip: Use the <span class="kbd">Search</span> box above to instantly filter your table and find matches. Import/Export lets you move data between devices or into Numbers/Excel.</p>
       </section>
 
       <!-- Right: Vehicle Checker -->
@@ -202,7 +199,6 @@
             <button id="btn-clear-check">Clear</button>
           </div>
         </div>
-        <p class="hint">If a part number is entered, it will be used and the Year/Make/Model are ignored.</p>
         <div id="check-results" style="margin-top:10px"></div>
       </section>
     </div>
@@ -226,8 +222,13 @@
     </section>
 
     <footer>
-      <div>Made for your shop. All data is stored locally in your browser (<span class="kbd">localStorage</span>). You can export a CSV backup anytime. (Photos are not included in CSV.)</div>
+      <div>All data is stored locally on this device (<span class="kbd">localStorage</span>). Photos stay local; CSV import/export removed per your request.</div>
     </footer>
+  </div>
+
+  <!-- Floating Erase All button -->
+  <div class="erase-fab">
+    <button id="btn-clear" class="danger">Erase ALL data on this device</button>
   </div>
 
   <!-- Photo Modal -->
@@ -241,7 +242,7 @@
   // ====== Helpers ======
   const $ = sel => document.querySelector(sel);
   const $$ = sel => Array.from(document.querySelectorAll(sel));
-  const LS_KEY = 'parts_inventory_v3_photos';
+  const LS_KEY = 'parts_inventory_v3_photos_minimal';
 
   // Master lists for dropdowns
   const YEARS = Array.from({length: 50}, (_,i)=> String(1990 + i));
@@ -319,8 +320,7 @@
   $('#photo').addEventListener('change', async (e)=>{
     const file = e.target.files && e.target.files[0];
     if(!file) { formPhotoData=''; return; }
-    // Convert to dataURL (and optionally downscale to keep size small)
-    const dataURL = await fileToDataURL(file, 1200); // max width 1200px
+    const dataURL = await fileToDataURL(file, 1200);
     formPhotoData = dataURL;
   });
   function fileToDataURL(file, maxW){
@@ -401,7 +401,7 @@
   // ====== Render ======
   function render(){
     const filtered = state.filter(r=> matchesSearch(r, searchTerm));
-    tbody.innerHTML = filtered.map(r=> rowHtml(r)).join('') || `<tr><td class="muted" colspan="13">No parts yet. Add with the form above or click <b>Load 10 Samples</b>.</td></tr>`;
+    tbody.innerHTML = filtered.map(r=> rowHtml(r)).join('') || `<tr><td class="muted" colspan="13">No parts yet. Add with the form above.</td></tr>`;
     invMeta.textContent = `${filtered.length} shown / ${state.length} total`;
   }
   function matchesSearch(r, q){
@@ -452,44 +452,9 @@
   $('#model').addEventListener('change', e=> toggleCustom('model', e.target.value==='Custom…'));
   $('#qty').addEventListener('change', e=> toggleCustom('qty', e.target.value==='Custom…'));
 
-  // Export CSV (photos excluded)
-  $('#btn-export').addEventListener('click', ()=>{
-    const csv = toCSV(state.map(({photo, ...rest})=> rest));
-    const blob = new Blob([csv], {type:'text/csv'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `parts-inventory-${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-  });
-
-  // Import CSV
-  $('#btn-import').addEventListener('click', ()=> $('#file').click());
-  $('#file').addEventListener('change', async (e)=>{
-    const file = e.target.files[0]; if(!file) return;
-    const text = await file.text();
-    const rows = fromCSV(text);
-    if(!Array.isArray(rows)) return alert('Could not parse CSV');
-    if(!confirm(`Import ${rows.length} rows? This will add to your current inventory.`)) return;
-    rows.forEach(r=>{ r.id = r.id || uid(); r.createdAt = r.createdAt || Date.now(); r.updatedAt = Date.now(); r.qty = Number(r.qty||0); });
-    state = [...rows, ...state];
-    save(); e.target.value=''; initDropdowns();
-  });
-
-  // Samples
-  $('#btn-sample').addEventListener('click', ()=>{
-    const now=Date.now();
-    const samples=[
-      {year:'2018',make:'Volkswagen',model:'GTI',partName:'Front bumper cover',partNumber:'5G0-807-217-AG',oem:'OEM',condition:'New',bin:'A2-B4',qty:1,vendor:'OEM',notes:'With park sensors'},
-      {year:'2016',make:'BMW',model:'X5',partName:'Radiator',partNumber:'17118672104',oem:'OEM',condition:'New',bin:'Cool-1',qty:2,vendor:'KEYSTONE',notes:'N55'},
-      {year:'2015',make:'Honda',model:'Civic',partName:'Right tail lamp',partNumber:'33501TR0A11',oem:'OEM',condition:'Used - B',bin:'L-5',qty:1,vendor:'EMPIRE',notes:'Small scratch'}
-    ].map(s=> ({id:uid(), createdAt:now, updatedAt:now, ...s}));
-    state = [...samples, ...state];
-    save(); initDropdowns();
-  });
-
-  // Clear all
+  // Floating Erase button
   $('#btn-clear').addEventListener('click', ()=>{
-    if(confirm('This erases ALL saved parts on this device. Proceed?')){
+    if(confirm('This erases ALL saved parts (including photos) on THIS device. Proceed?')){
       state = []; save(); initDropdowns();
     }
   });
@@ -525,39 +490,6 @@
       `</div>`;
   });
   $('#btn-clear-check').addEventListener('click', ()=>{ $('#checkYear').value=''; $('#checkMake').value=''; $('#checkModel').innerHTML=''; $('#checkPartNumber').value=''; $('#check-results').innerHTML=''; });
-
-  // CSV helpers (photos excluded), headers aligned
-  function toCSV(rows){
-    const headers = ['id','year','make','model','partName','partNumber','oem','condition','bin','qty','vendor','notes','createdAt','updatedAt'];
-    const escC = v => '"'+String(v??'').replace(/"/g,'""')+'"';
-    return headers.join(',')+'
-'+rows.map(r=> headers.map(h=> escC(r[h])).join(',')).join('
-');
-  }
-  function fromCSV(text){
-    const lines = text.split(/
-?
-/).filter(Boolean);
-    if(lines.length<2) return [];
-    const headers = splitCSVLine(lines[0]);
-    return lines.slice(1).map(line=>{
-      const cols = splitCSVLine(line);
-      const obj = {}; headers.forEach((h,i)=> obj[h]=cols[i]);
-      return obj;
-    });
-  }
-  function splitCSVLine(line){
-    const out=[]; let cur=''; let inQ=false;
-    for(let i=0;i<line.length;i++){
-      const ch=line[i];
-      if(ch==='"'){
-        if(inQ && line[i+1]==='"'){ cur+='"'; i++; }
-        else inQ=!inQ;
-      } else if(ch===',' && !inQ){ out.push(cur); cur=''; }
-      else cur+=ch;
-    }
-    out.push(cur); return out;
-  }
 
   // Kickoff
   initDropdowns();
