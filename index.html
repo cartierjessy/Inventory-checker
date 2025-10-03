@@ -530,10 +530,14 @@
   function toCSV(rows){
     const headers = ['id','year','make','model','partName','partNumber','oem','condition','bin','qty','vendor','notes','createdAt','updatedAt'];
     const escC = v => '"'+String(v??'').replace(/"/g,'""')+'"';
-    return headers.join(',')+'\n'+rows.map(r=> headers.map(h=> escC(r[h])).join(',')).join('\n');
+    return headers.join(',')+'
+'+rows.map(r=> headers.map(h=> escC(r[h])).join(',')).join('
+');
   }
   function fromCSV(text){
-    const lines = text.split(/\r?\n/).filter(Boolean);
+    const lines = text.split(/
+?
+/).filter(Boolean);
     if(lines.length<2) return [];
     const headers = splitCSVLine(lines[0]);
     return lines.slice(1).map(line=>{
