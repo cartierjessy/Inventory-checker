@@ -6,11 +6,12 @@
 <title>Inventory • Shop Parts</title>
 <style>
   :root{ --border:#e6edf5; --ink:#0b1220; --muted:#5b6b83; --brand:#0b61ff; --ok:#198754; --warn:#b8860b; --danger:#c0392b; --radius:18px; }
-  *{box-sizing:border-box} body{margin:0;background:#fff;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   .wrap{max-width:1200px;margin:0 auto;padding:24px}
-  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
-  nav a{color:#0b2c66;text-decoration:none;font-weight:600;border:1px solid var(--border);padding:8px 12px;border-radius:10px;background:#f8fbff}
+  header{display:flex;gap:14px;align-items:center;justify-content:space-between;margin-bottom:18px}
   h1{margin:0;font-size:20px} .badge{background:#e9f7ef;color:#226b3b;border:1px solid #bfe7c9;padding:4px 10px;border-radius:999px;font-size:12px}
+  nav a{color:#0b2c66;text-decoration:none;font-weight:600;border:1px solid var(--border);padding:8px 12px;border-radius:10px;background:#f8fbff}
   .grid{display:grid;gap:14px} .panels{grid-template-columns:1.1fr .9fr}
   .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:0 10px 35px rgba(0,0,0,.06)}
   .card h2{margin:0 0 10px;font-size:16px;color:#0b2c66}
@@ -25,11 +26,12 @@
   button.warn{background:#b8860b;color:#fff;border-color:#b8860b} button.danger{background:#c0392b;color:#fff;border-color:#c0392b}
   button.icon{padding:6px 10px;border-radius:10px}
   table{width:100%;border-collapse:separate;border-spacing:0 8px}
-  thead th{font-size:12px;color:var(--muted);text-align:left;padding:0 10px}
+  thead th{font-size:12px;color:#5b6b83;text-align:left;padding:0 10px}
   tbody td{background:#fff;border:1px solid var(--border);border-left:none;border-right:none;padding:10px;border-radius:10px}
+  tbody tr{transition:transform .08s ease} tbody tr:hover{transform:translateY(-1px)}
   .pill{padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #d6e2f3;color:#1f3c68;background:#eef4ff}
   .toolbar{display:flex;gap:10px;flex-wrap:wrap}.toolbar input{max-width:260px}
-  .muted{color:var(--muted)} .kbd{font-family:ui-monospace,Menlo,Consolas,monospace;background:#fafbff;border:1px solid var(--border);border-radius:6px;padding:2px 6px;color:#0b2c66}
+  .muted{color:#5b6b83} .kbd{font-family:ui-monospace,Menlo,Consolas,monospace;background:#fafbff;border:1px solid var(--border);border-radius:6px;padding:2px 6px;color:#0b2c66}
   .erase-fab{position:fixed;left:16px;bottom:16px;z-index:60}
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
   .modal .box{background:#fff;border:1px solid var(--border);border-radius:16px;max-width:90vw;max-height:90vh;padding:10px}
@@ -44,9 +46,7 @@
         <h1>Parts Inventory & Vehicle Checker</h1>
         <span class="badge">Offline (this device)</span>
       </div>
-      <nav>
-        <a href="./returns.html">Open Parts Return →</a>
-      </nav>
+      <nav><a href="./returns.html">Open Parts Return →</a></nav>
     </header>
 
     <div class="grid panels">
@@ -166,13 +166,11 @@
 const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
 const LS_KEY='parts_inventory_whitetheme_returns_v2';
 
-// ----- Store (shared with returns.html)
 function loadStore(){
   try{
     const raw=localStorage.getItem(LS_KEY);
     if(!raw) return { items:[], toReturn:[], pendingRefund:[], archive:[] };
     const parsed=JSON.parse(raw);
-    // Back-compat with older array-only versions
     if(Array.isArray(parsed)) return { items:parsed, toReturn:[], pendingRefund:[], archive:[] };
     return Object.assign({ items:[], toReturn:[], pendingRefund:[], archive:[] }, parsed);
   }catch{ return { items:[], toReturn:[], pendingRefund:[], archive:[] }; }
@@ -180,7 +178,6 @@ function loadStore(){
 let STORE=loadStore();
 function saveStore(){ localStorage.setItem(LS_KEY, JSON.stringify(STORE)); render(); }
 
-// ----- Lists & dropdown data
 const YEARS = Array.from({length:(2025-1990+1)}, (_,i)=> String(1990+i));
 const MAKES = ['Acura','Alfa Romeo','Audi','BMW','Buick','Cadillac','Chevrolet','Chrysler','Dodge','Ford','GMC','Honda','Hyundai','Infiniti','Jaguar','Jeep','Kia','Land Rover','Lexus','Lincoln','Mazda','Mercedes-Benz','Mini','Mitsubishi','Nissan','Porsche','Ram','Subaru','Tesla','Toyota','Volkswagen','Volvo'];
 const MODELS={ 'Volkswagen':['GTI','Golf','Jetta','Passat','Tiguan','Atlas'], 'Dodge':['Durango 392','Charger','Challenger','Ram 1500'], 'Tesla':['Model 3','Model Y','Model S','Model X'], 'BMW':['X5','3 Series','5 Series','X3','X7'], 'Honda':['Civic','Accord','CR-V','Pilot'] };
@@ -192,7 +189,7 @@ function buildSelect(el, options, {includeCustom=true}={}){
   options.forEach(v=>el.appendChild(opt(v))); if(includeCustom) el.appendChild(opt('Custom…'));
 }
 function initDropdowns(){
-  buildSelect($('#year'), YEARS, {includeCustom:false});
+  buildSelect($('#year'), YEARS, {includeCustom:false});      // Year: no Custom
   buildSelect($('#checkYear'), YEARS, {includeCustom:false});
   buildSelect($('#make'), MAKES, {includeCustom:true});
   buildSelect($('#checkMake'), MAKES, {includeCustom:false});
@@ -280,24 +277,12 @@ function upsert(row){
   const i=state.findIndex(r=>r.id===row.id);
   if(i>=0){ row.createdAt=state[i].createdAt; row.updatedAt=Date.now(); state[i]=row; }
   else state.unshift(row);
-  // extend makes/models list
   if(!MAKES.includes(row.make) && row.make && row.make!=='Custom'){ MAKES.push(row.make); }
   if(row.make){ MODELS[row.make]=MODELS[row.make]||[]; if(!MODELS[row.make].includes(row.model) && row.model){ MODELS[row.make].push(row.model); } }
   STORE.items = state; saveStore(); clearForm(); initDropdowns();
 }
 function removeItem(id){ state = state.filter(r=>r.id!==id); STORE.items=state; saveStore(); }
 
-function render(){
-  const tbody=$('#table tbody'); const invMeta=$('#inv-meta');
-  const filtered = state.filter(r=> matchesSearch(r, searchTerm));
-  tbody.innerHTML = filtered.map(r=> rowHtml(r)).join('') || `<tr><td class="muted" colspan="13">No parts yet. Add with the form above.</td></tr>`;
-  invMeta.textContent = `${filtered.length} shown / ${state.length} total`;
-}
-function matchesSearch(r,q){
-  if(!q) return true; q=q.toLowerCase();
-  const A=[r.year,r.make,r.model,r.partName,r.partNumber,r.oem,r.condition,r.bin,r.vendor,r.notes,r.qty].map(x=>String(x||'').toLowerCase());
-  return A.some(f=>f.includes(q));
-}
 function rowHtml(r){
   const hasPhoto=!!r.photo;
   return `<tr>
@@ -314,7 +299,18 @@ function rowHtml(r){
     </td>
   </tr>`;
 }
+function render(){
+  const filtered = state.filter(r=> matchesSearch(r, searchTerm));
+  $('#table tbody').innerHTML = filtered.map(r=> rowHtml(r)).join('') || `<tr><td class="muted" colspan="13">No parts yet. Add with the form above.</td></tr>`;
+  $('#inv-meta').textContent = `${filtered.length} shown / ${state.length} total`;
+}
+function matchesSearch(r,q){
+  if(!q) return true; q=q.toLowerCase();
+  const A=[r.year,r.make,r.model,r.partName,r.partNumber,r.oem,r.condition,r.bin,r.vendor,r.notes,r.qty].map(x=>String(x||'').toLowerCase());
+  return A.some(f=>f.includes(q));
+}
 function esc(s){ return (s??'').toString().replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
+
 window.editRow=id=>{ const r=state.find(x=>x.id===id); if(r){ fillForm(r); window.scrollTo({top:0,behavior:'smooth'}); } };
 window.deleteRow=id=>{ if(confirm('Delete this part?')) removeItem(id); };
 window.showPhoto=id=>{ const r=state.find(x=>x.id===id); if(!r||!r.photo) return; $('#photoImg').src=r.photo; $('#photoModal').style.display='flex'; };
@@ -324,7 +320,6 @@ function startReturn(id){
   const r=state.find(x=>x.id===id); if(!r) return;
   const rec={ id: uid(), itemId:r.id, partName:r.partName, partNumber:r.partNumber, vendor:r.vendor, qty:Math.max(1,Number(r.qty||1)), notes:`From inventory bin ${r.bin||'-'}`, price:'', invoice:'', createdAt:Date.now(), status:'toReturn' };
   STORE.toReturn.unshift(rec); saveStore();
-  // Optional: jump to Returns page
   if(confirm('Added to Parts Return. Open the Returns page?')) location.href='./returns.html';
 }
 
@@ -368,11 +363,10 @@ $('#btn-check').addEventListener('click', ()=> {
 });
 $('#btn-clear-check').addEventListener('click', ()=>{ $('#checkYear').value=''; $('#checkMake').value=''; $('#checkModel').innerHTML=''; $('#checkPartNumber').value=''; $('#check-results').innerHTML=''; });
 
-// kickoff
+// kick off
 initDropdowns(); render();
 
-// util
-function esc(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
+function esc(s){ return (s??'').toString().replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
 function fmt(v){ return (v??'').toString().trim(); }
 </script>
 </body>
