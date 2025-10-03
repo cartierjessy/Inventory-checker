@@ -6,25 +6,27 @@
 <title>Parts Return • Shop Parts</title>
 <style>
   :root{ --border:#e6edf5; --ink:#0b1220; --muted:#5b6b83; --brand:#0b61ff; --ok:#198754; --warn:#b8860b; --danger:#c0392b; --radius:18px; }
-  *{box-sizing:border-box} body{margin:0;background:#fff;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-  .wrap{max-width:1100px;margin:0 auto;padding:24px}
-  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{max-width:1200px;margin:0 auto;padding:24px}
+  header{display:flex;gap:14px;align-items:center;justify-content:space-between;margin-bottom:18px}
+  h1{margin:0;font-size:20px}
   nav a{color:#0b2c66;text-decoration:none;font-weight:600;border:1px solid var(--border);padding:8px 12px;border-radius:10px;background:#f8fbff}
-  h1{margin:0;font-size:20px} .mini{font-size:12px;color:var(--muted)}
-  .row{display:grid;grid-template-columns:repeat(12,1fr);gap:10px}
   .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:0 10px 35px rgba(0,0,0,.06); margin-bottom:14px}
+  .row{display:grid;grid-template-columns:repeat(12,1fr);gap:10px}
+  .col-3{grid-column:span 3}.col-4{grid-column:span 4}.col-5{grid-column:span 5}.col-6{grid-column:span 6}.col-12{grid-column:span 12}
   label{font-size:12px;color:var(--muted)}
   input,select{width:100%;background:#fff;color:#0b1220;border:1px solid #d7e0ea;border-radius:12px;padding:10px 12px;font-size:14px;outline:none}
   .btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
   button{background:#f5f8ff;border:1px solid #cfe0ff;color:#0b2c66;padding:10px 14px;border-radius:12px;font-weight:600;cursor:pointer}
   button.good{background:#198754;color:#fff;border-color:#198754} button.warn{background:#b8860b;color:#fff;border-color:#b8860b} button.danger{background:#c0392b;color:#fff;border-color:#c0392b}
   .pill{padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #d6e2f3;color:#1f3c68;background:#eef4ff}
-  .panelTitle{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+  .mini{font-size:12px;color:var(--muted)}
   .list{display:grid;gap:10px}
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
   .modal .box{background:#fff;border:1px solid var(--border);border-radius:16px;max-width:95vw;max-height:95vh;padding:12px}
   canvas.sig{border:1px dashed #cbd5e1;border-radius:10px;background:#fff;touch-action:none}
-  @media(max-width:980px){.row{grid-template-columns:1fr}}
+  @media (max-width:980px){.row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -34,27 +36,27 @@
       <nav><a href="./index.html">← Back to Inventory</a></nav>
     </header>
 
-    <div class="card">
+    <section class="card">
       <div class="mini" style="margin-bottom:8px">
         If parts are a bit old but still look returnable, mark as <b>Pending Return</b> and confirm.
         If not returnable, remove from this list and keep in inventory.
       </div>
       <div class="row">
         <div class="col-6">
-          <label>Quick add (look up by Part # from Inventory)</label>
+          <label>Quick add (lookup by Part # from Inventory)</label>
           <div class="row">
             <div class="col-4"><input id="qaNumber" placeholder="Part # (lookup)" /></div>
             <div class="col-4"><input id="qaPart" placeholder="Part name" /></div>
             <div class="col-4"><input id="qaVendor" placeholder="Vendor" /></div>
-            <div class="col-4"><input id="qaQty" type="number" min="1" value="1" /></div>
-            <div class="col-4"><input id="qaPrice" type="number" min="0" step="0.01" placeholder="Price (optional)" /></div>
-            <div class="col-4"><input id="qaInvoice" placeholder="Invoice #" /></div>
+            <div class="col-3"><input id="qaQty" type="number" min="1" value="1" /></div>
+            <div class="col-3"><input id="qaPrice" type="number" min="0" step="0.01" placeholder="Price" /></div>
+            <div class="col-3"><input id="qaInvoice" placeholder="Invoice #" /></div>
             <div class="col-12"><input id="qaNotes" placeholder="Notes / reason" /></div>
             <div class="col-12 btns"><button class="warn" id="qaAdd">Add to To Return</button></div>
           </div>
         </div>
         <div class="col-6">
-          <label>Vendor filter & sort</label>
+          <label>Vendor filter & sort (applies to all lists)</label>
           <div class="row">
             <div class="col-6">
               <select id="filterVendor">
@@ -64,32 +66,30 @@
             </div>
             <div class="col-6">
               <select id="sortVendor">
-                <option value="">Sort by created time (newest)</option>
-                <option value="vendorAsc">Sort by vendor A→Z</option>
-                <option value="vendorDesc">Sort by vendor Z→A</option>
+                <option value="">Sort by created (newest)</option>
+                <option value="vendorAsc">Vendor A→Z</option>
+                <option value="vendorDesc">Vendor Z→A</option>
               </select>
             </div>
           </div>
-          <div class="mini" style="margin-top:6px">Filter/sort applies to all lists below.</div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Lists -->
-    <div class="card">
-      <div class="panelTitle"><h3 style="margin:0">To Return</h3></div>
+    <section class="card">
+      <h2 style="margin:0 0 10px;color:#0b2c66">To Return</h2>
       <div id="list-toReturn" class="list"></div>
-    </div>
+    </section>
 
-    <div class="card">
-      <div class="panelTitle"><h3 style="margin:0">Pending Refund</h3></div>
+    <section class="card">
+      <h2 style="margin:0 0 10px;color:#0b2c66">Pending Refund</h2>
       <div id="list-pendingRefund" class="list"></div>
-    </div>
+    </section>
 
-    <div class="card">
-      <div class="panelTitle"><h3 style="margin:0">Archive</h3></div>
+    <section class="card">
+      <h2 style="margin:0 0 10px;color:#0b2c66">Archive</h2>
       <div id="list-archive" class="list"></div>
-    </div>
+    </section>
   </div>
 
   <!-- Signature modal -->
@@ -121,20 +121,16 @@ function loadStore(){
 }
 let STORE=loadStore();
 function saveStore(){ localStorage.setItem(LS_KEY, JSON.stringify(STORE)); renderAll(); }
-
 function uid(){ return Math.random().toString(36).slice(2,10); }
 function esc(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
 function fmt(v){ return (v??'').toString().trim(); }
 
-// Quick add — try to auto-fill from inventory by Part #
+// Quick add lookup by Part #
 $('#qaNumber').addEventListener('change', ()=>{
   const pn = fmt($('#qaNumber').value).toLowerCase();
   if(!pn) return;
   const hit = STORE.items.find(x => String(x.partNumber||'').toLowerCase()===pn);
-  if(hit){
-    $('#qaPart').value = hit.partName||'';
-    $('#qaVendor').value = hit.vendor||'';
-  }
+  if(hit){ $('#qaPart').value = hit.partName||''; $('#qaVendor').value = hit.vendor||''; }
 });
 $('#qaAdd').addEventListener('click', ()=>{
   const rec={ id:uid(),
@@ -146,11 +142,10 @@ $('#qaAdd').addEventListener('click', ()=>{
   };
   if(!rec.partName && !rec.partNumber){ alert('Enter at least a Part name or Part #'); return; }
   STORE.toReturn.unshift(rec); saveStore();
-  ['qaPart','qaNumber','qaVendor','qaQty','qaPrice','qaInvoice','qaNotes'].forEach(id=>$('#'+id).value='');
-  $('#qaQty').value=1;
+  ['qaPart','qaNumber','qaVendor','qaQty','qaPrice','qaInvoice','qaNotes'].forEach(id=>$('#'+id).value=''); $('#qaQty').value=1;
 });
 
-// Filter/sort controls
+// Filter/sort
 $('#filterVendor').addEventListener('change', renderAll);
 $('#sortVendor').addEventListener('change', renderAll);
 function applyFilterSort(list){
@@ -164,18 +159,15 @@ function applyFilterSort(list){
   return out;
 }
 
-// Renderers
+// Render
 function renderAll(){
   $('#list-toReturn').innerHTML = renderList(applyFilterSort(STORE.toReturn), 'toReturn');
   $('#list-pendingRefund').innerHTML = renderList(applyFilterSort(STORE.pendingRefund), 'pendingRefund');
   $('#list-archive').innerHTML = renderList(applyFilterSort(STORE.archive), 'archive');
 }
-function renderList(arr, where){
-  if(!arr.length) return `<div class="mini">Empty</div>`;
-  return arr.map(r=>itemCard(r, where)).join('');
-}
+function renderList(arr, where){ if(!arr.length) return `<div class="mini">Empty</div>`; return arr.map(r=>itemCard(r, where)).join(''); }
 function itemCard(r, where){
-  const line1 = `
+  const top = `
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <span class="pill">${esc(r.partName||'-')}</span>
       <span class="pill">#${esc(r.partNumber||'-')}</span>
@@ -187,7 +179,7 @@ function itemCard(r, where){
       ${r.takenAt? `<span class="pill">Sent: ${new Date(r.takenAt).toLocaleString()}</span>`:''}
     </div>`;
   const notes = `<div class="mini" style="margin-top:6px">${esc(r.notes||'')}</div>`;
-  let actions = '';
+  let actions='';
   if(where==='toReturn'){
     actions = `<div class="btns" style="margin-top:8px">
       <button class="good" onclick="openSend('${r.id}')">Mark Sent (sign)</button>
@@ -201,10 +193,10 @@ function itemCard(r, where){
       <button class="danger" onclick="cancelRefund('${r.id}')">Cancel & Back to To Return</button>
     </div>`;
   }
-  return `<div class="card">${line1}${notes}${actions}</div>`;
+  return `<div class="card">${top}${notes}${actions||''}</div>`;
 }
 
-// Edit / remove in To Return
+// Edit/remove To Return
 window.editPending = id => {
   const r = STORE.toReturn.find(x=>x.id===id); if(!r) return;
   const fields = [
@@ -220,11 +212,9 @@ window.editPending = id => {
   }
   saveStore();
 };
-window.removePending = id => {
-  if(confirm('Remove from To Return?')){ STORE.toReturn = STORE.toReturn.filter(x=>x.id!==id); saveStore(); }
-};
+window.removePending = id => { if(confirm('Remove from To Return?')){ STORE.toReturn = STORE.toReturn.filter(x=>x.id!==id); saveStore(); } };
 
-// Signature / Send
+// Signature flow
 let sendCtx={id:null};
 const sendModal=$('#sendModal'); const sigPad=$('#sigPad'); const ctx=sigPad.getContext('2d'); ctx.lineWidth=2; ctx.lineCap='round';
 let drawing=false,last=null;
@@ -241,8 +231,7 @@ window.openSend = id =>{
   const now=new Date(); $('#sigWhen').value=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16);
   $('#sigExtra').value=''; ctx.clearRect(0,0,sigPad.width,sigPad.height); sendModal.style.display='flex';
 };
-function hideSendModal(){ sendModal.style.display='none'; }
-window.hideSendModal=hideSendModal;
+function hideSendModal(){ sendModal.style.display='none'; } window.hideSendModal=hideSendModal;
 
 $('#sigSave').addEventListener('click', ()=>{
   const rec = STORE.toReturn.find(x=>x.id===sendCtx.id); if(!rec) return;
@@ -255,10 +244,8 @@ $('#sigSave').addEventListener('click', ()=>{
   STORE.pendingRefund.unshift(moved);
   saveStore(); hideSendModal();
 });
-
 window.viewSignature = id =>{
   const r = STORE.pendingRefund.find(x=>x.id===id); if(!r||!r.signature) return alert('No signature on file.');
-  // simple popup
   const w = window.open(); w.document.write(`<img src="${r.signature}" style="max-width:100%">`);
 };
 window.cancelRefund = id =>{
@@ -276,11 +263,8 @@ window.markPaid = id =>{
   STORE.archive.unshift(r); saveStore();
 };
 
-// Render on load & when other tab changes data
-function renderAllTabs(){ STORE=loadStore(); renderAll(); }
-window.addEventListener('storage', (e)=>{ if(e.key===LS_KEY) renderAllTabs(); });
-
-// Start
+// keep in sync if both tabs open
+window.addEventListener('storage', (e)=>{ if(e.key===LS_KEY){ STORE=loadStore(); renderAll(); }});
 renderAll();
 </script>
 </body>
