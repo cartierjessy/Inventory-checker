@@ -19,7 +19,9 @@
   input,select{width:100%;background:#fff;color:#0b1220;border:1px solid #d7e0ea;border-radius:12px;padding:10px 12px;font-size:14px;outline:none}
   .btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
   button{background:#f5f8ff;border:1px solid #cfe0ff;color:#0b2c66;padding:10px 14px;border-radius:12px;font-weight:600;cursor:pointer}
-  button.good{background:#198754;color:#fff;border-color:#198754} button.warn{background:#b8860b;color:#fff;border-color:#b8860b} button.danger{background:#c0392b;color:#fff;border-color:#c0392b}
+  button.good{background:#198754;color:#fff;border-color:#198754}
+  button.warn{background:#b8860b;color:#fff;border-color:#b8860b}
+  button.danger{background:#c0392b;color:#fff;border-color:#c0392b}
   .pill{padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #d6e2f3;color:#1f3c68;background:#eef4ff}
   .mini{font-size:12px;color:var(--muted)}
   .list{display:grid;gap:10px}
@@ -107,165 +109,170 @@
   </div>
 
 <script>
-const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
-const LS_KEY='parts_inventory_whitetheme_returns_v2';
+document.addEventListener('DOMContentLoaded', () => {
+  const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
+  const LS_KEY='parts_inventory_whitetheme_returns_v3'; // same as index
 
-function loadStore(){
-  try{
-    const raw=localStorage.getItem(LS_KEY);
-    if(!raw) return { items:[], toReturn:[], pendingRefund:[], archive:[] };
-    const parsed=JSON.parse(raw);
-    if(Array.isArray(parsed)) return { items:parsed, toReturn:[], pendingRefund:[], archive:[] };
-    return Object.assign({ items:[], toReturn:[], pendingRefund:[], archive:[] }, parsed);
-  }catch{ return { items:[], toReturn:[], pendingRefund:[], archive:[] }; }
-}
-let STORE=loadStore();
-function saveStore(){ localStorage.setItem(LS_KEY, JSON.stringify(STORE)); renderAll(); }
-function uid(){ return Math.random().toString(36).slice(2,10); }
-function esc(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
-function fmt(v){ return (v??'').toString().trim(); }
+  function loadStore(){
+    try{
+      const raw=localStorage.getItem(LS_KEY);
+      if(!raw) return { items:[], toReturn:[], pendingRefund:[], archive:[] };
+      const parsed=JSON.parse(raw);
+      if(Array.isArray(parsed)) return { items:parsed, toReturn:[], pendingRefund:[], archive:[] };
+      return Object.assign({ items:[], toReturn:[], pendingRefund:[], archive:[] }, parsed);
+    }catch{ return { items:[], toReturn:[], pendingRefund:[], archive:[] }; }
+  }
+  let STORE=loadStore();
+  function saveStore(){ localStorage.setItem(LS_KEY, JSON.stringify(STORE)); renderAll(); }
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+  function esc(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&gt;":">","\"":"&quot;","'":"&#39;"}[m])); }
+  function fmt(v){ return (v??'').toString().trim(); }
 
-// Quick add lookup by Part #
-$('#qaNumber').addEventListener('change', ()=>{
-  const pn = fmt($('#qaNumber').value).toLowerCase();
-  if(!pn) return;
-  const hit = STORE.items.find(x => String(x.partNumber||'').toLowerCase()===pn);
-  if(hit){ $('#qaPart').value = hit.partName||''; $('#qaVendor').value = hit.vendor||''; }
-});
-$('#qaAdd').addEventListener('click', ()=>{
-  const rec={ id:uid(),
-    partName: fmt($('#qaPart').value), partNumber: fmt($('#qaNumber').value),
-    vendor: fmt($('#qaVendor').value), qty: Math.max(1, Number($('#qaQty').value||1)),
-    price: $('#qaPrice').value? Number($('#qaPrice').value):'',
-    invoice: fmt($('#qaInvoice').value),
-    notes: fmt($('#qaNotes').value), createdAt: Date.now(), status:'toReturn'
+  // Quick add lookup by Part #
+  $('#qaNumber').addEventListener('change', ()=>{
+    const pn = fmt($('#qaNumber').value).toLowerCase();
+    if(!pn) return;
+    const hit = STORE.items.find(x => String(x.partNumber||'').toLowerCase()===pn);
+    if(hit){ $('#qaPart').value = hit.partName||''; $('#qaVendor').value = hit.vendor||''; }
+  });
+  $('#qaAdd').addEventListener('click', ()=>{
+    const rec={ id:uid(),
+      partName: fmt($('#qaPart').value), partNumber: fmt($('#qaNumber').value),
+      vendor: fmt($('#qaVendor').value), qty: Math.max(1, Number($('#qaQty').value||1)),
+      price: $('#qaPrice').value? Number($('#qaPrice').value):'',
+      invoice: fmt($('#qaInvoice').value),
+      notes: fmt($('#qaNotes').value), createdAt: Date.now(), status:'toReturn'
+    };
+    if(!rec.partName && !rec.partNumber){ alert('Enter at least a Part name or Part #'); return; }
+    STORE.toReturn.unshift(rec);
+    saveStore(); // <- re-renders all lists so it shows up immediately
+    // clear
+    ['qaPart','qaNumber','qaVendor','qaQty','qaPrice','qaInvoice','qaNotes'].forEach(id=>$('#'+id).value='');
+    $('#qaQty').value=1;
+  });
+
+  // Filter/sort
+  $('#filterVendor').addEventListener('change', renderAll);
+  $('#sortVendor').addEventListener('change', renderAll);
+  function applyFilterSort(list){
+    const fv = $('#filterVendor').value;
+    const sv = $('#sortVendor').value;
+    let out = list.slice();
+    if(fv) out = out.filter(r => (r.vendor||'')===fv);
+    if(sv==='vendorAsc') out.sort((a,b)=> (a.vendor||'').localeCompare(b.vendor||''));
+    if(sv==='vendorDesc') out.sort((a,b)=> (b.vendor||'').localeCompare(a.vendor||''));
+    if(!sv) out.sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
+    return out;
+  }
+
+  // Render
+  function renderAll(){
+    $('#list-toReturn').innerHTML = renderList(applyFilterSort(STORE.toReturn), 'toReturn');
+    $('#list-pendingRefund').innerHTML = renderList(applyFilterSort(STORE.pendingRefund), 'pendingRefund');
+    $('#list-archive').innerHTML = renderList(applyFilterSort(STORE.archive), 'archive');
+  }
+  function renderList(arr, where){ if(!arr.length) return `<div class="mini">Empty</div>`; return arr.map(r=>itemCard(r, where)).join(''); }
+  function itemCard(r, where){
+    const top = `
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="pill">${esc(r.partName||'-')}</span>
+        <span class="pill">#${esc(r.partNumber||'-')}</span>
+        <span class="pill">Vendor: ${esc(r.vendor||'-')}</span>
+        <span class="pill">Qty: ${esc(r.qty||1)}</span>
+        ${r.price!==''? `<span class="pill">Price: $${Number(r.price).toFixed(2)}</span>`:''}
+        ${r.invoice? `<span class="pill">Inv: ${esc(r.invoice)}</span>`:''}
+        ${r.driver? `<span class="pill">Driver: ${esc(r.driver)}</span>`:''}
+        ${r.takenAt? `<span class="pill">Sent: ${new Date(r.takenAt).toLocaleString()}</span>`:''}
+      </div>`;
+    const notes = `<div class="mini" style="margin-top:6px">${esc(r.notes||'')}</div>`;
+    let actions='';
+    if(where==='toReturn'){
+      actions = `<div class="btns" style="margin-top:8px">
+        <button class="good" onclick="openSend('${r.id}')">Mark Sent (sign)</button>
+        <button onclick="editPending('${r.id}')">Edit</button>
+        <button class="danger" onclick="removePending('${r.id}')">Remove</button>
+      </div>`;
+    } else if(where==='pendingRefund'){
+      actions = `<div class="btns" style="margin-top:8px">
+        <button class="warn" onclick="viewSignature('${r.id}')">View Signature</button>
+        <button class="good" onclick="markPaid('${r.id}')">Paid → Archive</button>
+        <button class="danger" onclick="cancelRefund('${r.id}')">Cancel & Back to To Return</button>
+      </div>`;
+    }
+    return `<div class="card">${top}${notes}${actions||''}</div>`;
+  }
+
+  // Edit/remove To Return
+  window.editPending = id => {
+    const r = STORE.toReturn.find(x=>x.id===id); if(!r) return;
+    const fields = [
+      ['Part name','partName'], ['Part #','partNumber'], ['Vendor','vendor'],
+      ['Qty','qty'], ['Price','price'], ['Invoice','invoice'], ['Notes','notes']
+    ];
+    for(const [label,key] of fields){
+      const v = prompt(`${label}:`, String(r[key] ?? ''));
+      if(v===null) continue;
+      if(key==='qty') r[key] = Math.max(1, Number(v||1));
+      else if(key==='price') r[key] = v===''? '' : Number(v);
+      else r[key] = v;
+    }
+    saveStore();
   };
-  if(!rec.partName && !rec.partNumber){ alert('Enter at least a Part name or Part #'); return; }
-  STORE.toReturn.unshift(rec); saveStore();
-  ['qaPart','qaNumber','qaVendor','qaQty','qaPrice','qaInvoice','qaNotes'].forEach(id=>$('#'+id).value=''); $('#qaQty').value=1;
-});
+  window.removePending = id => { if(confirm('Remove from To Return?')){ STORE.toReturn = STORE.toReturn.filter(x=>x.id!==id); saveStore(); } };
 
-// Filter/sort
-$('#filterVendor').addEventListener('change', renderAll);
-$('#sortVendor').addEventListener('change', renderAll);
-function applyFilterSort(list){
-  const fv = $('#filterVendor').value;
-  const sv = $('#sortVendor').value;
-  let out = list.slice();
-  if(fv) out = out.filter(r => (r.vendor||'')===fv);
-  if(sv==='vendorAsc') out.sort((a,b)=> (a.vendor||'').localeCompare(b.vendor||''));
-  if(sv==='vendorDesc') out.sort((a,b)=> (b.vendor||'').localeCompare(a.vendor||''));
-  if(!sv) out.sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
-  return out;
-}
+  // Signature flow
+  let sendCtx={id:null};
+  const sendModal=$('#sendModal'); const sigPad=$('#sigPad'); const ctx=sigPad.getContext('2d'); ctx.lineWidth=2; ctx.lineCap='round';
+  let drawing=false,last=null;
+  function pos(e){ const r=sigPad.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return {x,y}; }
+  function startDraw(e){ drawing=true; last=pos(e); }
+  function moveDraw(e){ if(!drawing) return; const p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; }
+  function endDraw(){ drawing=false; }
+  sigPad.addEventListener('mousedown',startDraw); sigPad.addEventListener('mousemove',moveDraw); window.addEventListener('mouseup',endDraw);
+  sigPad.addEventListener('touchstart',startDraw,{passive:true}); sigPad.addEventListener('touchmove',moveDraw,{passive:true}); sigPad.addEventListener('touchend',endDraw);
+  $('#sigClear').addEventListener('click', ()=> ctx.clearRect(0,0,sigPad.width,sigPad.height));
 
-// Render
-function renderAll(){
-  $('#list-toReturn').innerHTML = renderList(applyFilterSort(STORE.toReturn), 'toReturn');
-  $('#list-pendingRefund').innerHTML = renderList(applyFilterSort(STORE.pendingRefund), 'pendingRefund');
-  $('#list-archive').innerHTML = renderList(applyFilterSort(STORE.archive), 'archive');
-}
-function renderList(arr, where){ if(!arr.length) return `<div class="mini">Empty</div>`; return arr.map(r=>itemCard(r, where)).join(''); }
-function itemCard(r, where){
-  const top = `
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <span class="pill">${esc(r.partName||'-')}</span>
-      <span class="pill">#${esc(r.partNumber||'-')}</span>
-      <span class="pill">Vendor: ${esc(r.vendor||'-')}</span>
-      <span class="pill">Qty: ${esc(r.qty||1)}</span>
-      ${r.price!==''? `<span class="pill">Price: $${Number(r.price).toFixed(2)}</span>`:''}
-      ${r.invoice? `<span class="pill">Inv: ${esc(r.invoice)}</span>`:''}
-      ${r.driver? `<span class="pill">Driver: ${esc(r.driver)}</span>`:''}
-      ${r.takenAt? `<span class="pill">Sent: ${new Date(r.takenAt).toLocaleString()}</span>`:''}
-    </div>`;
-  const notes = `<div class="mini" style="margin-top:6px">${esc(r.notes||'')}</div>`;
-  let actions='';
-  if(where==='toReturn'){
-    actions = `<div class="btns" style="margin-top:8px">
-      <button class="good" onclick="openSend('${r.id}')">Mark Sent (sign)</button>
-      <button onclick="editPending('${r.id}')">Edit</button>
-      <button class="danger" onclick="removePending('${r.id}')">Remove</button>
-    </div>`;
-  } else if(where==='pendingRefund'){
-    actions = `<div class="btns" style="margin-top:8px">
-      <button class="warn" onclick="viewSignature('${r.id}')">View Signature</button>
-      <button class="good" onclick="markPaid('${r.id}')">Paid → Archive</button>
-      <button class="danger" onclick="cancelRefund('${r.id}')">Cancel & Back to To Return</button>
-    </div>`;
-  }
-  return `<div class="card">${top}${notes}${actions||''}</div>`;
-}
+  window.openSend = id =>{
+    sendCtx.id=id; $('#sigDriver').value='';
+    const now=new Date(); $('#sigWhen').value=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+    $('#sigExtra').value=''; ctx.clearRect(0,0,sigPad.width,sigPad.height); sendModal.style.display='flex';
+  };
+  function hideSendModal(){ sendModal.style.display='none'; } window.hideSendModal=hideSendModal;
 
-// Edit/remove To Return
-window.editPending = id => {
-  const r = STORE.toReturn.find(x=>x.id===id); if(!r) return;
-  const fields = [
-    ['Part name','partName'], ['Part #','partNumber'], ['Vendor','vendor'],
-    ['Qty','qty'], ['Price','price'], ['Invoice','invoice'], ['Notes','notes']
-  ];
-  for(const [label,key] of fields){
-    const v = prompt(`${label}:`, String(r[key] ?? ''));
-    if(v===null) continue;
-    if(key==='qty') r[key] = Math.max(1, Number(v||1));
-    else if(key==='price') r[key] = v===''? '' : Number(v);
-    else r[key] = v;
-  }
-  saveStore();
-};
-window.removePending = id => { if(confirm('Remove from To Return?')){ STORE.toReturn = STORE.toReturn.filter(x=>x.id!==id); saveStore(); } };
-
-// Signature flow
-let sendCtx={id:null};
-const sendModal=$('#sendModal'); const sigPad=$('#sigPad'); const ctx=sigPad.getContext('2d'); ctx.lineWidth=2; ctx.lineCap='round';
-let drawing=false,last=null;
-function pos(e){ const r=sigPad.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return {x,y}; }
-function startDraw(e){ drawing=true; last=pos(e); }
-function moveDraw(e){ if(!drawing) return; const p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; }
-function endDraw(){ drawing=false; }
-sigPad.addEventListener('mousedown',startDraw); sigPad.addEventListener('mousemove',moveDraw); window.addEventListener('mouseup',endDraw);
-sigPad.addEventListener('touchstart',startDraw,{passive:true}); sigPad.addEventListener('touchmove',moveDraw,{passive:true}); sigPad.addEventListener('touchend',endDraw);
-$('#sigClear').addEventListener('click', ()=> ctx.clearRect(0,0,sigPad.width,sigPad.height));
-
-window.openSend = id =>{
-  sendCtx.id=id; $('#sigDriver').value='';
-  const now=new Date(); $('#sigWhen').value=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16);
-  $('#sigExtra').value=''; ctx.clearRect(0,0,sigPad.width,sigPad.height); sendModal.style.display='flex';
-};
-function hideSendModal(){ sendModal.style.display='none'; } window.hideSendModal=hideSendModal;
-
-$('#sigSave').addEventListener('click', ()=>{
-  const rec = STORE.toReturn.find(x=>x.id===sendCtx.id); if(!rec) return;
-  const driver = fmt($('#sigDriver').value); if(!driver){ alert('Enter driver name'); return; }
-  const when = $('#sigWhen').value ? new Date($('#sigWhen').value).getTime() : Date.now();
-  const extra = fmt($('#sigExtra').value);
-  const signature = sigPad.toDataURL('image/png');
-  const moved = Object.assign({}, rec, { driver, takenAt: when, extra, signature, status:'pendingRefund' });
-  STORE.toReturn = STORE.toReturn.filter(x=>x.id!==rec.id);
-  STORE.pendingRefund.unshift(moved);
-  saveStore(); hideSendModal();
-});
-window.viewSignature = id =>{
-  const r = STORE.pendingRefund.find(x=>x.id===id); if(!r||!r.signature) return alert('No signature on file.');
-  const w = window.open(); w.document.write(`<img src="${r.signature}" style="max-width:100%">`);
-};
-window.cancelRefund = id =>{
-  const r = STORE.pendingRefund.find(x=>x.id===id); if(!r) return;
-  if(confirm('Move back to To Return?')){
+  $('#sigSave').addEventListener('click', ()=>{
+    const rec = STORE.toReturn.find(x=>x.id===sendCtx.id); if(!rec) return;
+    const driver = fmt($('#sigDriver').value); if(!driver){ alert('Enter driver name'); return; }
+    const when = $('#sigWhen').value ? new Date($('#sigWhen').value).getTime() : Date.now();
+    const extra = fmt($('#sigExtra').value);
+    const signature = sigPad.toDataURL('image/png');
+    const moved = Object.assign({}, rec, { driver, takenAt: when, extra, signature, status:'pendingRefund' });
+    STORE.toReturn = STORE.toReturn.filter(x=>x.id!==rec.id);
+    STORE.pendingRefund.unshift(moved);
+    saveStore(); hideSendModal();
+  });
+  window.viewSignature = id =>{
+    const r = STORE.pendingRefund.find(x=>x.id===id); if(!r||!r.signature) return alert('No signature on file.');
+    const w = window.open(); w.document.write(`<img src="${r.signature}" style="max-width:100%">`);
+  };
+  window.cancelRefund = id =>{
+    const r = STORE.pendingRefund.find(x=>x.id===id); if(!r) return;
+    if(confirm('Move back to To Return?')){
+      STORE.pendingRefund = STORE.pendingRefund.filter(x=>x.id!==id);
+      delete r.signature; delete r.driver; delete r.takenAt;
+      STORE.toReturn.unshift(r); saveStore();
+    }
+  };
+  window.markPaid = id =>{
+    const r = STORE.pendingRefund.find(x=>x.id===id); if(!r) return;
+    r.paidAt = Date.now();
     STORE.pendingRefund = STORE.pendingRefund.filter(x=>x.id!==id);
-    delete r.signature; delete r.driver; delete r.takenAt;
-    STORE.toReturn.unshift(r); saveStore();
-  }
-};
-window.markPaid = id =>{
-  const r = STORE.pendingRefund.find(x=>x.id===id); if(!r) return;
-  r.paidAt = Date.now();
-  STORE.pendingRefund = STORE.pendingRefund.filter(x=>x.id!==id);
-  STORE.archive.unshift(r); saveStore();
-};
+    STORE.archive.unshift(r); saveStore();
+  };
 
-// keep in sync if both tabs open
-window.addEventListener('storage', (e)=>{ if(e.key===LS_KEY){ STORE=loadStore(); renderAll(); }});
-renderAll();
+  // keep in sync if both tabs open
+  window.addEventListener('storage', (e)=>{ if(e.key===LS_KEY){ STORE=loadStore(); renderAll(); }});
+  renderAll();
+});
 </script>
 </body>
 </html>
