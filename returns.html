@@ -26,6 +26,10 @@
   thead th{font-size:12px;color:#5b6b83;text-align:left;padding:0 10px}
   tbody td{background:#fff;border:1px solid var(--border);border-left:none;border-right:none;padding:10px;border-radius:10px}
   .mini{font-size:12px;color:var(--muted)}
+  /* Split line between Quick Add and Vendor filters */
+  .split{position:relative}
+  .split::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--border)}
+  @media (max-width:980px){ .split::after{display:none} }
 </style>
 </head>
 <body>
@@ -40,13 +44,27 @@
         If parts are a bit old but still look returnable, mark as <b>Pending Return</b> and confirm.
         If not returnable, remove from this list and keep in inventory.
       </div>
-      <div class="row">
+
+      <!-- Split row with vertical divider -->
+      <div class="row split">
+        <!-- LEFT: Quick add -->
         <div class="col-6">
           <label>Quick add (lookup by Part # from Inventory)</label>
           <div class="row">
             <div class="col-4"><input id="qaNumber" placeholder="Part # (lookup)" /></div>
             <div class="col-4"><input id="qaPart" placeholder="Part name" /></div>
-            <div class="col-4"><input id="qaVendor" placeholder="Vendor" /></div>
+
+            <!-- Vendor select + Other -->
+            <div class="col-4">
+              <select id="qaVendorSel">
+                <option value="">Vendor (optional)</option>
+                <option>OEM</option><option>KEYSTONE</option><option>EMPIRE</option><option>OTHER</option>
+              </select>
+            </div>
+            <div class="col-4" id="qaVendorOtherWrap" style="display:none">
+              <input id="qaVendorOther" placeholder="Enter vendor name" />
+            </div>
+
             <div class="col-3"><input id="qaQty" type="number" min="1" value="1" /></div>
             <div class="col-3"><input id="qaPrice" type="number" min="0" step="0.01" placeholder="Price" /></div>
             <div class="col-3"><input id="qaInvoice" placeholder="Invoice #" /></div>
@@ -54,6 +72,8 @@
             <div class="col-12 btns"><button class="warn" id="qaAdd">Add to To Return</button></div>
           </div>
         </div>
+
+        <!-- RIGHT: Filters/Sort -->
         <div class="col-6">
           <label>Vendor filter & sort (applies to all lists)</label>
           <div class="row">
@@ -146,29 +166,53 @@ document.addEventListener('DOMContentLoaded', () => {
   let STORE=loadStore();
   function saveStore(){ localStorage.setItem(LS_KEY, JSON.stringify(STORE)); renderAll(); }
   function uid(){ return Math.random().toString(36).slice(2,10); }
-  function esc(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","\">":"&quot;","'":"&#39;",">":"&gt;"}[m])); }
+  function esc(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","\"":"&quot;","'":"&#39;",">":"&gt;"}[m])); }
   function fmt(v){ return (v??'').toString().trim(); }
+
+  // Vendor dropdown behavior (OTHER shows input)
+  const vendorSel = $('#qaVendorSel');
+  const vendorOtherWrap = $('#qaVendorOtherWrap');
+  const vendorOther = $('#qaVendorOther');
+  vendorSel.addEventListener('change', ()=>{
+    vendorOtherWrap.style.display = (vendorSel.value==='OTHER') ? 'block' : 'none';
+    if(vendorSel.value!=='OTHER') vendorOther.value='';
+  });
 
   // Quick add lookup by Part #
   $('#qaNumber').addEventListener('change', ()=>{
     const pn = fmt($('#qaNumber').value).toLowerCase();
     if(!pn) return;
     const hit = STORE.items.find(x => String(x.partNumber||'').toLowerCase()===pn);
-    if(hit){ $('#qaPart').value = hit.partName||''; $('#qaVendor').value = hit.vendor||''; }
+    if(hit){
+      $('#qaPart').value = hit.partName||'';
+      // prefill vendor select/other
+      const v = (hit.vendor||'').toUpperCase();
+      if(['OEM','KEYSTONE','EMPIRE','OTHER'].includes(v)){
+        vendorSel.value = v;
+        vendorOtherWrap.style.display = (v==='OTHER')?'block':'none';
+        if(v==='OTHER') vendorOther.value = hit.vendor;
+      }else if(v){
+        vendorSel.value = 'OTHER'; vendorOtherWrap.style.display='block'; vendorOther.value = hit.vendor;
+      }
+    }
   });
+
+  // Add to To Return
   $('#qaAdd').addEventListener('click', ()=>{
+    const vendor = vendorSel.value==='OTHER' ? fmt(vendorOther.value) : vendorSel.value;
     const rec={ id:uid(),
       partName: fmt($('#qaPart').value), partNumber: fmt($('#qaNumber').value),
-      vendor: fmt($('#qaVendor').value), qty: Math.max(1, Number($('#qaQty').value||1)),
+      vendor: vendor, qty: Math.max(1, Number($('#qaQty').value||1)),
       price: $('#qaPrice').value? Number($('#qaPrice').value):'',
       invoice: fmt($('#qaInvoice').value),
       notes: fmt($('#qaNotes').value), createdAt: Date.now(), status:'toReturn'
     };
     if(!rec.partName && !rec.partNumber){ alert('Enter at least a Part name or Part #'); return; }
     STORE.toReturn.unshift(rec);
-    saveStore();               // ensures it shows up immediately
+    saveStore();
     // clear form
-    ['qaPart','qaNumber','qaVendor','qaQty','qaPrice','qaInvoice','qaNotes'].forEach(id=>$('#'+id).value='');
+    ['qaPart','qaNumber','qaQty','qaPrice','qaInvoice','qaNotes','qaVendorOther'].forEach(id=>{ const el=$('#'+id); if(el) el.value=''; });
+    vendorSel.value=''; vendorOtherWrap.style.display='none';
     $('#qaQty').value=1;
   });
 
