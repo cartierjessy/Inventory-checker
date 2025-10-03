@@ -198,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(includeCustom){ const o=document.createElement('option'); o.value='Custom…'; o.textContent='Custom…'; el.appendChild(o); }
   }
   function initDropdowns(){
-    buildSelect($('#year'), YEARS, {includeCustom:false});  // Year fixed list
+    buildSelect($('#year'), YEARS, {includeCustom:false});
     buildSelect($('#checkYear'), YEARS, {includeCustom:false});
     buildSelect($('#make'), MAKES, {includeCustom:true});
     buildSelect($('#checkMake'), MAKES, {includeCustom:false});
@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function fmt(v){ return (v??'').toString().trim(); }
   function uid(){ return Math.random().toString(36).slice(2,10); }
-  function esc(s){ return (s??'').toString().replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;","\">":"&quot;","'":"&#39;",">":"&gt;"}[m])); }
+  function esc(s){ return (s??'').toString().replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;","\"":"&quot;","'":"&#39;",">":"&gt;"}[m])); }
 
   // Photo
   $('#photo').addEventListener('change', async (e)=>{
@@ -285,8 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const i=state.findIndex(r=>r.id===row.id);
     if(i>=0){ row.createdAt=state[i].createdAt; row.updatedAt=Date.now(); state[i]=row; }
     else state.unshift(row);
-    // *** FIXED LINE BELOW (was `r.row`) ***
-    if(row.make){ 
+    if(row.make){
       if(!MAKES.includes(row.make) && row.make!=='Custom'){ MAKES.push(row.make); }
       MODELS[row.make]=MODELS[row.make]||[];
       if(row.model && !MODELS[row.make].includes(row.model)){ MODELS[row.make].push(row.model); }
@@ -295,19 +294,39 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function removeItem(id){ state = state.filter(r=>r.id!==id); STORE.items=state; saveStore(); }
 
+  // Build inventory rows = items + "To Return only" virtuals
+  function buildInventoryView(){
+    const rows = [...STORE.items];
+    // Add virtual rows for To Return entries that are not already items (no itemId)
+    for(const tr of STORE.toReturn){
+      if(!tr.itemId){
+        rows.push({
+          id: 'tr_'+tr.id,
+          year: '-', make: '-', model: '-',
+          partName: tr.partName || '(To Return)', partNumber: tr.partNumber || '',
+          oem: '-', condition: '-', bin: '(To Return)', qty: tr.qty || 1,
+          vendor: tr.vendor || '-', notes: (tr.notes? tr.notes+' • ': '') + 'To Return',
+          photo: undefined
+        });
+      }
+    }
+    return rows;
+  }
+
   function rowHtml(r){
     const hasPhoto=!!r.photo;
     return `<tr>
       <td>${hasPhoto?`<button class="icon" title="View photo" onclick="showPhoto('${r.id}')">🖼️</button>`:''}</td>
       <td>${esc(r.year)}</td><td>${esc(r.make)}</td><td>${esc(r.model)}</td>
       <td>${esc(r.partName)}</td>
-      <td><code class="kbd">${esc(r.partNumber)}</code></td>
-      <td>${esc(r.oem)}</td><td>${esc(r.condition)}</td><td>${esc(r.bin)}</td>
-      <td>${r.qty}</td><td>${esc(r.vendor)}</td><td>${esc(r.notes)}</td>
+      <td><code class="kbd">${esc(r.partNumber||'')}</code></td>
+      <td>${esc(r.oem||'-')}</td><td>${esc(r.condition||'-')}</td><td>${esc(r.bin||'-')}</td>
+      <td>${r.qty||0}</td><td>${esc(r.vendor||'-')}</td><td>${esc(r.notes||'')}</td>
       <td>
-        <button onclick="editRow('${r.id}')">Edit</button>
-        <button class="warn" onclick="startReturn('${r.id}')">Return</button>
-        <button class="danger" onclick="deleteRow('${r.id}')">Delete</button>
+        ${String(r.id).startsWith('tr_') ? '' :
+          `<button onclick="editRow('${r.id}')">Edit</button>
+           <button class="warn" onclick="startReturn('${r.id}')">Return</button>
+           <button class="danger" onclick="deleteRow('${r.id}')">Delete</button>`}
       </td>
     </tr>`;
   }
@@ -317,9 +336,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return A.some(f=>f.includes(q));
   }
   function render(){
-    const filtered = state.filter(r=> matchesSearch(r, searchTerm));
+    const all = buildInventoryView();
+    const filtered = all.filter(r=> matchesSearch(r, searchTerm));
     document.querySelector('#table tbody').innerHTML = filtered.map(r=> rowHtml(r)).join('') || `<tr><td class="muted" colspan="13">No parts yet. Add with the form above.</td></tr>`;
-    document.querySelector('#inv-meta').textContent = `${filtered.length} shown / ${state.length} total`;
+    document.querySelector('#inv-meta').textContent = `${filtered.length} shown / ${all.length} total`;
   }
 
   // global handlers
@@ -348,10 +368,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelector('#checkMake').addEventListener('change', e=> syncCheckerModels(e.target.value));
   document.querySelector('#btn-check').addEventListener('click', ()=> {
     const pn = fmt(document.querySelector('#checkPartNumber').value).toLowerCase(); let results=[];
-    if(pn){ results = state.filter(r=> String(r.partNumber||'').toLowerCase().includes(pn)); }
+    const all = buildInventoryView();
+    if(pn){ results = all.filter(r=> String(r.partNumber||'').toLowerCase().includes(pn)); }
     else{
       const y=document.querySelector('#checkYear').value, mk=document.querySelector('#checkMake').value, md=document.querySelector('#checkModel').value;
-      results = state.filter(r=>{
+      results = all.filter(r=>{
         const yOk = y? String(r.year)===String(y):true;
         const mOk = mk && mk!=='-'? String(r.make||'')===mk:true;
         const dOk = md && md!=='-'? String(r.model||'')===md:true;
@@ -366,13 +387,16 @@ document.addEventListener('DOMContentLoaded', () => {
         <div style="display:flex;gap:8px;align-items:center">
           <span class="pill">${esc(r.year)} ${esc(r.make)} ${esc(r.model)}</span>
           <span class="pill">Bin: ${esc(r.bin||'-')}</span>
-          <span class="pill">Qty: ${r.qty}</span>
+          <span class="pill">Qty: ${r.qty||0}</span>
         </div>
         <div style="margin-top:6px"><b>${esc(r.partName)}</b> <span class="muted">#${esc(r.partNumber||'-')}</span></div>
-        <div class="muted">${esc(r.oem)} • ${esc(r.condition)} • Vendor: ${esc(r.vendor||'-')}</div>
+        <div class="muted">${esc(r.oem||'-')} • ${esc(r.condition||'-')} • Vendor: ${esc(r.vendor||'-')}</div>
       </div>`).join('') + `</div>`;
   });
   document.querySelector('#btn-clear-check').addEventListener('click', ()=>{ document.querySelector('#checkYear').value=''; document.querySelector('#checkMake').value=''; document.querySelector('#checkModel').innerHTML=''; document.querySelector('#checkPartNumber').value=''; document.querySelector('#check-results').innerHTML=''; });
+
+  // keep in sync if both tabs are open
+  window.addEventListener('storage', (e)=>{ if(e.key===LS_KEY){ STORE=loadStore(); state=STORE.items; render(); }});
 
   // init
   initDropdowns(); render();
