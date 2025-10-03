@@ -171,8 +171,8 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
-  const LS_KEY='parts_inventory_whitetheme_returns_v3'; // bump key to avoid old broken state
+  const $=s=>document.querySelector(s);
+  const LS_KEY='parts_inventory_whitetheme_returns_v3';
 
   function loadStore(){
     try{
@@ -198,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(includeCustom){ const o=document.createElement('option'); o.value='Custom…'; o.textContent='Custom…'; el.appendChild(o); }
   }
   function initDropdowns(){
-    buildSelect($('#year'), YEARS, {includeCustom:false});                 // Year fixed list
+    buildSelect($('#year'), YEARS, {includeCustom:false});  // Year fixed list
     buildSelect($('#checkYear'), YEARS, {includeCustom:false});
     buildSelect($('#make'), MAKES, {includeCustom:true});
     buildSelect($('#checkMake'), MAKES, {includeCustom:false});
@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function fmt(v){ return (v??'').toString().trim(); }
   function uid(){ return Math.random().toString(36).slice(2,10); }
-  function esc(s){ return (s??'').toString().replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
+  function esc(s){ return (s??'').toString().replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;","\">":"&quot;","'":"&#39;",">":"&gt;"}[m])); }
 
   // Photo
   $('#photo').addEventListener('change', async (e)=>{
@@ -285,8 +285,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const i=state.findIndex(r=>r.id===row.id);
     if(i>=0){ row.createdAt=state[i].createdAt; row.updatedAt=Date.now(); state[i]=row; }
     else state.unshift(row);
-    if(!MAKES.includes(row.make) && row.make && row.make!=='Custom'){ MAKES.push(row.make); }
-    if(row.make){ MODELS[row.make]=MODELS[row.make]||[]; if(!MODELS[row.make].includes(row.model) && r.row){ MODELS[row.make].push(row.model); } } // safe even if custom
+    // *** FIXED LINE BELOW (was `r.row`) ***
+    if(row.make){ 
+      if(!MAKES.includes(row.make) && row.make!=='Custom'){ MAKES.push(row.make); }
+      MODELS[row.make]=MODELS[row.make]||[];
+      if(row.model && !MODELS[row.make].includes(row.model)){ MODELS[row.make].push(row.model); }
+    }
     STORE.items = state; saveStore(); clearForm(); initDropdowns();
   }
   function removeItem(id){ state = state.filter(r=>r.id!==id); STORE.items=state; saveStore(); }
@@ -314,15 +318,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function render(){
     const filtered = state.filter(r=> matchesSearch(r, searchTerm));
-    $('#table tbody').innerHTML = filtered.map(r=> rowHtml(r)).join('') || `<tr><td class="muted" colspan="13">No parts yet. Add with the form above.</td></tr>`;
-    $('#inv-meta').textContent = `${filtered.length} shown / ${state.length} total`;
+    document.querySelector('#table tbody').innerHTML = filtered.map(r=> rowHtml(r)).join('') || `<tr><td class="muted" colspan="13">No parts yet. Add with the form above.</td></tr>`;
+    document.querySelector('#inv-meta').textContent = `${filtered.length} shown / ${state.length} total`;
   }
 
   // global handlers
   window.editRow=id=>{ const r=state.find(x=>x.id===id); if(r){ fillForm(r); window.scrollTo({top:0,behavior:'smooth'}); } };
   window.deleteRow=id=>{ if(confirm('Delete this part?')) removeItem(id); };
-  window.showPhoto=id=>{ const r=state.find(x=>x.id===id); if(!r||!r.photo) return; $('#photoImg').src=r.photo; $('#photoModal').style.display='flex'; };
-  window.hideModal=()=> $('#photoModal').style.display='none';
+  window.showPhoto=id=>{ const r=state.find(x=>x.id===id); if(!r||!r.photo) return; document.querySelector('#photoImg').src=r.photo; document.querySelector('#photoModal').style.display='flex'; };
+  window.hideModal=()=> document.querySelector('#photoModal').style.display='none';
 
   function startReturn(id){
     const r=state.find(x=>x.id===id); if(!r) return;
@@ -333,22 +337,20 @@ document.addEventListener('DOMContentLoaded', () => {
   window.startReturn=startReturn;
 
   // events
-  $('#part-form').addEventListener('submit', e=>{ e.preventDefault(); const row=readForm(); if(!row.partName){ alert('Part Name is required'); return; } upsert(row); });
-  $('#btn-reset').addEventListener('click', clearForm);
-  document.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); $('#btn-save').click(); }});
-  $('#search').addEventListener('input', e=>{ searchTerm=e.target.value; render(); });
-  $('#make').addEventListener('change', e=>{ toggleCustom('make', e.target.value==='Custom…'); syncModelOptions(e.target.value); });
-  $('#model').addEventListener('change', e=> toggleCustom('model', e.target.value==='Custom…'));
-  $('#qty').addEventListener('change', e=> toggleCustom('qty', e.target.value==='Custom…'));
-  $('#btn-clear').addEventListener('click', ()=>{ if(confirm('Erase ALL data on THIS device (inventory + returns + photos + signatures)?')){ STORE={items:[],toReturn:[],pendingRefund:[],archive:[]}; state=STORE.items; saveStore(); initDropdowns(); }});
+  document.querySelector('#part-form').addEventListener('submit', e=>{ e.preventDefault(); const row=readForm(); if(!row.partName){ alert('Part Name is required'); return; } upsert(row); });
+  document.querySelector('#btn-reset').addEventListener('click', clearForm);
+  document.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); document.querySelector('#btn-save').click(); }});
+  document.querySelector('#make').addEventListener('change', e=>{ toggleCustom('make', e.target.value==='Custom…'); syncModelOptions(e.target.value); });
+  document.querySelector('#model').addEventListener('change', e=> toggleCustom('model', e.target.value==='Custom…'));
+  document.querySelector('#qty').addEventListener('change', e=> toggleCustom('qty', e.target.value==='Custom…'));
 
   // vehicle checker
-  $('#checkMake').addEventListener('change', e=> syncCheckerModels(e.target.value));
-  $('#btn-check').addEventListener('click', ()=> {
-    const pn = fmt($('#checkPartNumber').value).toLowerCase(); let results=[];
+  document.querySelector('#checkMake').addEventListener('change', e=> syncCheckerModels(e.target.value));
+  document.querySelector('#btn-check').addEventListener('click', ()=> {
+    const pn = fmt(document.querySelector('#checkPartNumber').value).toLowerCase(); let results=[];
     if(pn){ results = state.filter(r=> String(r.partNumber||'').toLowerCase().includes(pn)); }
     else{
-      const y=$('#checkYear').value, mk=$('#checkMake').value, md=$('#checkModel').value;
+      const y=document.querySelector('#checkYear').value, mk=document.querySelector('#checkMake').value, md=document.querySelector('#checkModel').value;
       results = state.filter(r=>{
         const yOk = y? String(r.year)===String(y):true;
         const mOk = mk && mk!=='-'? String(r.make||'')===mk:true;
@@ -356,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return yOk&&mOk&&dOk;
       });
     }
-    const box=$('#check-results');
+    const box=document.querySelector('#check-results');
     if(results.length===0){ box.innerHTML='<div class="muted">No matches found.</div>'; return; }
     box.innerHTML = `<div style="margin-bottom:8px">Found <b>${results.length}</b> matching part(s):</div>` +
       `<div style="display:grid;gap:10px">` +
@@ -370,9 +372,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="muted">${esc(r.oem)} • ${esc(r.condition)} • Vendor: ${esc(r.vendor||'-')}</div>
       </div>`).join('') + `</div>`;
   });
-  $('#btn-clear-check').addEventListener('click', ()=>{ $('#checkYear').value=''; $('#checkMake').value=''; $('#checkModel').innerHTML=''; $('#checkPartNumber').value=''; $('#check-results').innerHTML=''; });
+  document.querySelector('#btn-clear-check').addEventListener('click', ()=>{ document.querySelector('#checkYear').value=''; document.querySelector('#checkMake').value=''; document.querySelector('#checkModel').innerHTML=''; document.querySelector('#checkPartNumber').value=''; document.querySelector('#check-results').innerHTML=''; });
 
-  // kick off
+  // init
   initDropdowns(); render();
 });
 </script>
