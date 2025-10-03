@@ -1,159 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Parts Return • Shop Parts</title>
-<style>
-  :root{ --border:#e6edf5; --ink:#0b1220; --muted:#5b6b83; --brand:#0b61ff; --ok:#198754; --warn:#b8860b; --danger:#c0392b; --radius:18px; }
-  *{box-sizing:border-box}
-  body{margin:0;background:#fff;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-  .wrap{max-width:1200px;margin:0 auto;padding:24px}
-  header{display:flex;gap:14px;align-items:center;justify-content:space-between;margin-bottom:18px}
-  h1{margin:0;font-size:20px}
-  nav a{color:#0b2c66;text-decoration:none;font-weight:600;border:1px solid var(--border);padding:8px 12px;border-radius:10px;background:#f8fbff}
-  .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:0 10px 35px rgba(0,0,0,.06); margin-bottom:14px}
-  .row{display:grid;grid-template-columns:repeat(12,1fr);gap:10px}
-  .col-3{grid-column:span 3}.col-4{grid-column:span 4}.col-5{grid-column:span 5}.col-6{grid-column:span 6}.col-12{grid-column:span 12}
-  label{font-size:12px;color:var(--muted)}
-  input,select{width:100%;background:#fff;color:#0b1220;border:1px solid #d7e0ea;border-radius:12px;padding:10px 12px;font-size:14px;outline:none}
-  .btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
-  button{background:#f5f8ff;border:1px solid #cfe0ff;color:#0b2c66;padding:8px 12px;border-radius:10px;font-weight:600;cursor:pointer}
-  button.good{background:#198754;color:#fff;border-color:#198754}
-  button.warn{background:#b8860b;color:#fff;border-color:#b8860b}
-  button.danger{background:#c0392b;color:#fff;border-color:#c0392b}
-  table{width:100%;border-collapse:separate;border-spacing:0 8px}
-  thead th{font-size:12px;color:#5b6b83;text-align:left;padding:0 10px}
-  tbody td{background:#fff;border:1px solid var(--border);border-left:none;border-right:none;padding:10px;border-radius:10px}
-  .mini{font-size:12px;color:var(--muted)}
-  /* Split line between Quick Add and Vendor filters */
-  .split{position:relative}
-  .split::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--border)}
-  @media (max-width:980px){ .split::after{display:none} }
-</style>
-</head>
-<body>
-  <div class="wrap">
-    <header>
-      <h1>Parts Return</h1>
-      <nav><a href="./index.html">← Back to Inventory</a></nav>
-    </header>
-
-    <section class="card">
-      <div class="mini" style="margin-bottom:8px">
-        If parts are a bit old but still look returnable, mark as <b>Pending Return</b> and confirm.
-        If not returnable, remove from this list and keep in inventory.
-      </div>
-
-      <!-- Split row with vertical divider -->
-      <div class="row split">
-        <!-- LEFT: Quick add -->
-        <div class="col-6">
-          <label>Quick add (lookup by Part # from Inventory)</label>
-          <div class="row">
-            <div class="col-4"><input id="qaNumber" placeholder="Part # (lookup)" /></div>
-            <div class="col-4"><input id="qaPart" placeholder="Part name" /></div>
-
-            <!-- Vendor select + Other -->
-            <div class="col-4">
-              <select id="qaVendorSel">
-                <option value="">Vendor (optional)</option>
-                <option>OEM</option><option>KEYSTONE</option><option>EMPIRE</option><option>OTHER</option>
-              </select>
-            </div>
-            <div class="col-4" id="qaVendorOtherWrap" style="display:none">
-              <input id="qaVendorOther" placeholder="Enter vendor name" />
-            </div>
-
-            <div class="col-3"><input id="qaQty" type="number" min="1" value="1" /></div>
-            <div class="col-3"><input id="qaPrice" type="number" min="0" step="0.01" placeholder="Price" /></div>
-            <div class="col-3"><input id="qaInvoice" placeholder="Invoice #" /></div>
-            <div class="col-12"><input id="qaNotes" placeholder="Notes / reason" /></div>
-            <div class="col-12 btns"><button class="warn" id="qaAdd">Add to To Return</button></div>
-          </div>
-        </div>
-
-        <!-- RIGHT: Filters/Sort -->
-        <div class="col-6">
-          <label>Vendor filter & sort (applies to all lists)</label>
-          <div class="row">
-            <div class="col-6">
-              <select id="filterVendor">
-                <option value="">All vendors</option>
-                <option>OEM</option><option>KEYSTONE</option><option>EMPIRE</option><option>OTHER</option>
-              </select>
-            </div>
-            <div class="col-6">
-              <select id="sortVendor">
-                <option value="">Sort by created (newest)</option>
-                <option value="vendorAsc">Vendor A→Z</option>
-                <option value="vendorDesc">Vendor Z→A</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- To Return -->
-    <section class="card">
-      <h2 style="margin:0 0 10px;color:#0b2c66">To Return</h2>
-      <div style="overflow:auto">
-        <table>
-          <thead><tr>
-            <th>Part</th><th>#</th><th>Vendor</th><th>Qty</th><th>Price</th><th>Invoice</th><th>Notes</th><th>Actions</th>
-          </tr></thead>
-          <tbody id="tb-toReturn"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Pending Refund -->
-    <section class="card">
-      <h2 style="margin:0 0 10px;color:#0b2c66">Pending Refund</h2>
-      <div style="overflow:auto">
-        <table>
-          <thead><tr>
-            <th>Part</th><th>#</th><th>Vendor</th><th>Qty</th><th>Price</th><th>Invoice</th><th>Driver</th><th>Sent</th><th>Actions</th>
-          </tr></thead>
-          <tbody id="tb-pending"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Archive -->
-    <section class="card">
-      <h2 style="margin:0 0 10px;color:#0b2c66">Archive</h2>
-      <div style="overflow:auto">
-        <table>
-          <thead><tr>
-            <th>Part</th><th>#</th><th>Vendor</th><th>Qty</th><th>Price</th><th>Invoice</th><th>Driver</th><th>Paid</th>
-          </tr></thead>
-          <tbody id="tb-archive"></tbody>
-        </table>
-      </div>
-    </section>
-  </div>
-
-  <!-- Signature modal -->
-  <div class="modal" id="sendModal" onclick="hideSendModal()">
-    <div class="box" onclick="event.stopPropagation()">
-      <h3 style="margin:6px 0 10px">Mark as Sent to Vendor</h3>
-      <div class="row">
-        <div class="col-4"><label>Driver name</label><input id="sigDriver" placeholder="Driver" /></div>
-        <div class="col-4"><label>Date & time</label><input id="sigWhen" type="datetime-local" /></div>
-        <div class="col-4"><label>Tracking / Extra</label><input id="sigExtra" placeholder="Tracking # / Notes" /></div>
-        <div class="col-12"><label>Signature</label><canvas id="sigPad" class="sig" width="700" height="200"></canvas>
-          <div class="btns"><button id="sigClear">Clear</button><button class="good" id="sigSave">Confirm & Move to Pending Refund</button></div></div>
-      </div>
-    </div>
-  </div>
-
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const $=s=>document.querySelector(s);
   const LS_KEY='parts_inventory_whitetheme_returns_v3';
 
+  // --- storage ---
   function loadStore(){
     try{
       const raw=localStorage.getItem(LS_KEY);
@@ -166,38 +16,49 @@ document.addEventListener('DOMContentLoaded', () => {
   let STORE=loadStore();
   function saveStore(){ localStorage.setItem(LS_KEY, JSON.stringify(STORE)); renderAll(); }
   function uid(){ return Math.random().toString(36).slice(2,10); }
-  function esc(s){ return (s??'').toString().replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","\"":"&quot;","'":"&#39;",">":"&gt;"}[m])); }
+
+  // robust HTML escape (prevents rare crashes)
+  function esc(s){
+    return (s??'').toString().replace(/[&<>"']/g, m => (
+      m==='&' ? '&amp;' :
+      m==='<' ? '&lt;'  :
+      m==='>' ? '&gt;'  :
+      m==='"' ? '&quot;': '&#39;'
+    ));
+  }
   function fmt(v){ return (v??'').toString().trim(); }
 
-  // Vendor dropdown behavior (OTHER shows input)
+  // --- Vendor dropdown (OTHER shows input) ---
   const vendorSel = $('#qaVendorSel');
   const vendorOtherWrap = $('#qaVendorOtherWrap');
   const vendorOther = $('#qaVendorOther');
   vendorSel.addEventListener('change', ()=>{
-    vendorOtherWrap.style.display = (vendorSel.value==='OTHER') ? 'block' : 'none';
-    if(vendorSel.value!=='OTHER') vendorOther.value='';
+    const other = vendorSel.value==='OTHER';
+    vendorOtherWrap.style.display = other ? 'block' : 'none';
+    if(!other) vendorOther.value='';
   });
 
-  // Quick add lookup by Part #
+  // --- Quick add: lookup by Part # from Inventory ---
   $('#qaNumber').addEventListener('change', ()=>{
     const pn = fmt($('#qaNumber').value).toLowerCase();
     if(!pn) return;
     const hit = STORE.items.find(x => String(x.partNumber||'').toLowerCase()===pn);
     if(hit){
       $('#qaPart').value = hit.partName||'';
-      // prefill vendor select/other
       const v = (hit.vendor||'').toUpperCase();
       if(['OEM','KEYSTONE','EMPIRE','OTHER'].includes(v)){
         vendorSel.value = v;
         vendorOtherWrap.style.display = (v==='OTHER')?'block':'none';
         if(v==='OTHER') vendorOther.value = hit.vendor;
-      }else if(v){
-        vendorSel.value = 'OTHER'; vendorOtherWrap.style.display='block'; vendorOther.value = hit.vendor;
+      } else if(v){
+        vendorSel.value = 'OTHER';
+        vendorOtherWrap.style.display='block';
+        vendorOther.value = hit.vendor;
       }
     }
   });
 
-  // Add to To Return
+  // --- Add to "To Return" ---
   $('#qaAdd').addEventListener('click', ()=>{
     const vendor = vendorSel.value==='OTHER' ? fmt(vendorOther.value) : vendorSel.value;
     const rec={ id:uid(),
@@ -216,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#qaQty').value=1;
   });
 
-  // Filter/sort (applies to all three tables)
+  // --- Filter/sort (applies to all tables) ---
   $('#filterVendor').addEventListener('change', renderAll);
   $('#sortVendor').addEventListener('change', renderAll);
   function applyFilterSort(list){
@@ -225,13 +86,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let out = list.slice();
     if(fv) out = out.filter(r => (r.vendor||'')===fv);
     if(sv==='vendorAsc') out.sort((a,b)=> (a.vendor||'').localeCompare(b.vendor||''));
-    if(sv==='vendorDesc') out.sort((a,b)=> (b.vendor||'').localeCompare(a.vendor||''));
+    if(sv==='vendorDesc') out.sort((a,b)=> (b.vendor||'').localeCompare(a.vendor||'')); 
     if(!sv) out.sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
     return out;
   }
 
-  // Renderers: build rows into each table
-  function td(v){ return `<td>${v}</td>`; }
+  // --- Renderers ---
+  const td = v => `<td>${v}</td>`;
   function rowToReturn(r){
     return `<tr>
       ${td(esc(r.partName||'-'))}
@@ -282,12 +143,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const toR = applyFilterSort(STORE.toReturn);
     const pend = applyFilterSort(STORE.pendingRefund);
     const arch = applyFilterSort(STORE.archive);
-    document.querySelector('#tb-toReturn').innerHTML = toR.length? toR.map(rowToReturn).join('') : `<tr><td class="mini" colspan="8">Empty</td></tr>`;
-    document.querySelector('#tb-pending').innerHTML = pend.length? pend.map(rowPending).join('') : `<tr><td class="mini" colspan="9">Empty</td></tr>`;
-    document.querySelector('#tb-archive').innerHTML = arch.length? arch.map(rowArchive).join('') : `<tr><td class="mini" colspan="8">Empty</td></tr>`;
+    $('#tb-toReturn').innerHTML = toR.length? toR.map(rowToReturn).join('') : `<tr><td class="mini" colspan="8">Empty</td></tr>`;
+    $('#tb-pending').innerHTML = pend.length? pend.map(rowPending).join('') : `<tr><td class="mini" colspan="9">Empty</td></tr>`;
+    $('#tb-archive').innerHTML = arch.length? arch.map(rowArchive).join('') : `<tr><td class="mini" colspan="8">Empty</td></tr>`;
   }
 
-  // Edit/remove To Return
+  // --- Edit/remove To Return ---
   window.editPending = id => {
     const r = STORE.toReturn.find(x=>x.id===id); if(!r) return;
     const fields = [['Part name','partName'],['Part #','partNumber'],['Vendor','vendor'],['Qty','qty'],['Price','price'],['Invoice','invoice'],['Notes','notes']];
@@ -302,36 +163,53 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   window.removePending = id => { if(confirm('Remove from To Return?')){ STORE.toReturn = STORE.toReturn.filter(x=>x.id!==id); saveStore(); } };
 
-  // Signature modal
-  let sendCtx={id:null};
-  const sendModal=document.querySelector('#sendModal'); const sigPad=document.querySelector('#sigPad'); const ctx=sigPad.getContext('2d'); ctx.lineWidth=2; ctx.lineCap='round';
-  let drawing=false,last=null;
-  function pos(e){ const r=sigPad.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return {x,y}; }
+  // --- Signature modal + flow ---
+  const sendModal = $('#sendModal');
+  const sigPad    = $('#sigPad');
+  const ctx       = sigPad.getContext('2d');
+  ctx.lineWidth = 2; ctx.lineCap = 'round';
+
+  let drawing=false, last=null, sendCtx={id:null};
+  function pos(e){ const r=sigPad.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left, y:t.clientY-r.top}; }
   function startDraw(e){ drawing=true; last=pos(e); }
   function moveDraw(e){ if(!drawing) return; const p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; }
   function endDraw(){ drawing=false; }
-  sigPad.addEventListener('mousedown',startDraw); sigPad.addEventListener('mousemove',moveDraw); window.addEventListener('mouseup',endDraw);
-  sigPad.addEventListener('touchstart',startDraw,{passive:true}); sigPad.addEventListener('touchmove',moveDraw,{passive:true}); sigPad.addEventListener('touchend',endDraw);
-  document.querySelector('#sigClear').addEventListener('click', ()=> ctx.clearRect(0,0,sigPad.width,sigPad.height));
 
-  window.openSend = id =>{
-    sendCtx.id=id; document.querySelector('#sigDriver').value='';
-    const now=new Date(); document.querySelector('#sigWhen').value=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16);
-    document.querySelector('#sigExtra').value=''; ctx.clearRect(0,0,sigPad.width,sigPad.height); sendModal.style.display='flex';
+  sigPad.addEventListener('mousedown',startDraw);
+  sigPad.addEventListener('mousemove',moveDraw);
+  window.addEventListener('mouseup',endDraw);
+  sigPad.addEventListener('touchstart',startDraw,{passive:true});
+  sigPad.addEventListener('touchmove',moveDraw,{passive:true});
+  sigPad.addEventListener('touchend',endDraw);
+
+  $('#sigClear').addEventListener('click', ()=> ctx.clearRect(0,0,sigPad.width,sigPad.height));
+
+  // Expose open/close on window so inline onclick works
+  window.openSend = (id) => {
+    sendCtx.id = id;
+    $('#sigDriver').value='';
+    const now=new Date();
+    $('#sigWhen').value=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+    $('#sigExtra').value='';
+    ctx.clearRect(0,0,sigPad.width,sigPad.height);
+    sendModal.style.display='flex';
   };
-  function hideSendModal(){ sendModal.style.display='none'; } window.hideSendModal=hideSendModal;
+  window.hideSendModal = () => { sendModal.style.display='none'; };
 
-  document.querySelector('#sigSave').addEventListener('click', ()=>{
+  $('#sigSave').addEventListener('click', ()=>{
     const rec = STORE.toReturn.find(x=>x.id===sendCtx.id); if(!rec) return;
-    const driver = fmt(document.querySelector('#sigDriver').value); if(!driver){ alert('Enter driver name'); return; }
-    const when = document.querySelector('#sigWhen').value ? new Date(document.querySelector('#sigWhen').value).getTime() : Date.now();
-    const extra = fmt(document.querySelector('#sigExtra').value);
+    const driver = fmt($('#sigDriver').value); if(!driver){ alert('Enter driver name'); return; }
+    const when = $('#sigWhen').value ? new Date($('#sigWhen').value).getTime() : Date.now();
+    const extra = fmt($('#sigExtra').value);
     const signature = sigPad.toDataURL('image/png');
+
     const moved = Object.assign({}, rec, { driver, takenAt: when, extra, signature, status:'pendingRefund' });
     STORE.toReturn = STORE.toReturn.filter(x=>x.id!==rec.id);
     STORE.pendingRefund.unshift(moved);
-    saveStore(); hideSendModal();
+    saveStore();
+    sendModal.style.display='none';
   });
+
   window.viewSignature = id =>{
     const r = STORE.pendingRefund.find(x=>x.id===id); if(!r||!r.signature) return alert('No signature on file.');
     const w = window.open(); w.document.write(`<img src="${r.signature}" style="max-width:100%">`);
@@ -351,10 +229,8 @@ document.addEventListener('DOMContentLoaded', () => {
     STORE.archive.unshift(r); saveStore();
   };
 
-  // keep in sync if both tabs are open
+  // live sync if both tabs open
   window.addEventListener('storage', (e)=>{ if(e.key===LS_KEY){ STORE=loadStore(); renderAll(); }});
   renderAll();
 });
 </script>
-</body>
-</html>
